@@ -1,0 +1,15 @@
+# Env
+.env
+
+# Go
+bin/
+*.exe
+*.out
+
+# Flutter
+build/
+.dart_tool/
+
+# IDE
+.vscode/
+.idea/
