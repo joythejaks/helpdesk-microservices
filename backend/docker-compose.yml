@@ -30,20 +30,19 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     hostname: rabbitmq
-    user: "0"
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      RABBITMQ_ERLANG_COOKIE: "secretcookie"
+      HOME: /tmp
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   auth-service:
     build: ./auth-service
@@ -76,6 +75,14 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - ticket-service
 
 volumes:
   rabbitmq_data:
