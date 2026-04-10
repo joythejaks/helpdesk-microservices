@@ -7,6 +7,7 @@ import (
 	"auth-service/internal/delivery/http"
 	"auth-service/internal/domain"
 	"auth-service/internal/repository"
+	"auth-service/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -23,7 +24,7 @@ func main() {
 		port = "8081"
 	}
 
-	// ✅ CONNECT DB DULU
+	// ✅ CONNECT DB
 	db, err := repository.NewPostgresDB()
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
@@ -39,9 +40,19 @@ func main() {
 
 	log.Println("Migration done")
 
-	// baru start server
-	r := gin.Default()
-	http.RegisterRoutes(r)
+	// ✅ REPOSITORY
+	userRepo := repository.NewUserRepository(db)
 
+	// ✅ USECASE
+	authUsecase := usecase.NewAuthUsecase(userRepo)
+
+	// ✅ HANDLER
+	authHandler := http.NewAuthHandler(authUsecase)
+
+	// ✅ ROUTER
+	r := gin.Default()
+	http.RegisterRoutes(r, authHandler)
+
+	log.Println("Server running on port", port)
 	r.Run(":" + port)
 }
