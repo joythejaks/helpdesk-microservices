@@ -67,5 +67,15 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  notification-service:
+    build: ./notification-service
+    env_file:
+      - ./notification-service/.env
+    ports:
+      - "8083:8083"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 volumes:
   rabbitmq_data:
