@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"auth-service/internal/delivery/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -21,9 +23,7 @@ func main() {
 
 	r := gin.Default()
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "auth-service running"})
-	})
+	http.RegisterRoutes(r)
 
 	r.Run(":" + port)
 }
