@@ -1,7 +1,7 @@
 package domain
 
 type User struct {
-	ID       uint
-	Email    string
+	ID       uint   `gorm:"primaryKey"`
+	Email    string `gorm:"unique"`
 	Password string
 }
