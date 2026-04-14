@@ -26,14 +26,18 @@ func main() {
 
 	r := gin.Default()
 
+	// =======================
+	// 🔥 FIX CORS
+	// =======================
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Authorization", "Content-Type"},
-		AllowCredentials: true,
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Authorization", "Content-Type"},
 	}))
 
+	// =======================
 	// 🔥 FIX REDIRECT LOOP
+	// =======================
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
 
@@ -45,12 +49,22 @@ func main() {
 	})
 
 	// =======================
-	// AUTH (TRIM PREFIX)
+	// AUTH (PUBLIC)
 	// =======================
-	r.Any("/auth/*path", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
+	r.Any("/auth/login", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
+	r.Any("/auth/register", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
+	r.Any("/auth/refresh", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
 
 	// =======================
-	// TICKETS (ROOT FIX)
+	// 🔥 AUTH (PROTECTED)
+	// =======================
+	r.POST("/auth/logout",
+		authMiddleware(secret),
+		proxyTrim("/auth", config.AppConfig.AuthServiceURL),
+	)
+
+	// =======================
+	// TICKETS (ROOT)
 	// =======================
 	r.Any("/tickets",
 		authMiddleware(secret),
@@ -85,7 +99,7 @@ func proxy(target string) gin.HandlerFunc {
 		logger.Log.WithFields(logrus.Fields{
 			"path":   c.Request.URL.Path,
 			"target": target,
-		}).Info("proxy ticket")
+		}).Info("proxy request")
 
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}

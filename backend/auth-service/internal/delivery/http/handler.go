@@ -5,6 +5,7 @@ import (
 	"auth-service/internal/usecase"
 	"auth-service/pkg/logger"
 	"auth-service/pkg/response"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -75,7 +76,7 @@ type LoginRequest struct {
 
 //
 // =======================
-// LOGIN (UPDATED)
+// LOGIN
 // =======================
 //
 
@@ -110,7 +111,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	refreshTokenString, _ := refreshToken.SignedString(h.jwtSecret)
 
-	// 🔥 SIMPAN KE DB (REPLACE OLD)
+	// 🔥 SIMPAN (ROTATE)
 	h.refreshRepo.DeleteByUser(user.ID)
 	h.refreshRepo.Save(&domain.RefreshToken{
 		UserID: user.ID,
@@ -127,7 +128,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 //
 // =======================
-// REFRESH TOKEN
+// REFRESH TOKEN (ROTATION)
 // =======================
 //
 
@@ -141,7 +142,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// cek di DB
+	// 🔥 cek di DB
 	rt, err := h.refreshRepo.Find(req.RefreshToken)
 	if err != nil || rt == nil {
 		response.Error(c, 401, "invalid refresh token", "unauthorized")
@@ -159,37 +160,58 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	userID := claims["user_id"]
+	// 🔥 type safe conversion
+	userID := uint(claims["user_id"].(float64))
 
-	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	// 🔥 new access token
+	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(2 * time.Hour).Unix(),
 	})
 
-	tokenString, _ := newToken.SignedString(h.jwtSecret)
+	accessString, _ := newAccess.SignedString(h.jwtSecret)
+
+	// 🔥 new refresh token (ROTATION)
+	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
+	})
+
+	refreshString, _ := newRefresh.SignedString(h.jwtSecret)
+
+	// 🔥 replace old token
+	h.refreshRepo.DeleteByUser(userID)
+	h.refreshRepo.Save(&domain.RefreshToken{
+		UserID: userID,
+		Token:  refreshString,
+	})
 
 	response.Success(c, gin.H{
-		"access_token": tokenString,
+		"access_token":  accessString,
+		"refresh_token": refreshString,
 	})
 }
 
 //
 // =======================
-// LOGOUT (REVOKE)
+// LOGOUT (SECURE)
 // =======================
 //
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	var req struct {
-		UserID uint `json:"user_id"`
-	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, 400, "invalid input", "bad_request")
+	// 🔥 ambil dari gateway header (JWT)
+	userIDStr := c.GetHeader("X-User-ID")
+
+	var userID uint
+	fmt.Sscanf(userIDStr, "%d", &userID)
+
+	if userID == 0 {
+		response.Error(c, 401, "unauthorized", "unauthorized")
 		return
 	}
 
-	h.refreshRepo.DeleteByUser(req.UserID)
+	h.refreshRepo.DeleteByUser(userID)
 
 	response.Success(c, "logged out")
 }
