@@ -27,12 +27,18 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("failed to connect database:", err)
 	}
-	db.AutoMigrate(&domain.User{})
+
+	// 🔥 TAMBAH refresh token migration
+	db.AutoMigrate(&domain.User{}, &domain.RefreshToken{})
 
 	repo := repository.NewUserRepository(db)
 	usecase := usecase.NewAuthUsecase(repo)
 
-	handler := http.NewAuthHandler(usecase, jwtSecret)
+	// 🔥 TAMBAH refresh repo
+	refreshRepo := repository.NewRefreshTokenRepository(db)
+
+	// 🔥 UPDATE constructor
+	handler := http.NewAuthHandler(usecase, refreshRepo, jwtSecret)
 
 	r := gin.Default()
 
