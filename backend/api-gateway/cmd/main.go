@@ -9,6 +9,7 @@ import (
 	"api-gateway/pkg/logger"
 	"api-gateway/pkg/response"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
@@ -24,6 +25,13 @@ func main() {
 	secret := []byte(config.AppConfig.JWTSecret)
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	// 🔥 FIX REDIRECT LOOP
 	r.RedirectTrailingSlash = false
