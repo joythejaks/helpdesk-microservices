@@ -3,8 +3,6 @@ package usecase
 import (
 	"auth-service/internal/domain"
 	"auth-service/pkg/bcrypt"
-	"auth-service/pkg/jwt"
-	"errors"
 )
 
 type AuthUsecase struct {
@@ -16,7 +14,7 @@ func NewAuthUsecase(r domain.UserRepository) *AuthUsecase {
 }
 
 // REGISTER
-func (u *AuthUsecase) Register(email, password string) error {
+func (u *AuthUsecase) Register(email, password, role string) error {
 	hashed, err := bcrypt.Hash(password)
 	if err != nil {
 		return err
@@ -25,27 +23,23 @@ func (u *AuthUsecase) Register(email, password string) error {
 	user := &domain.User{
 		Email:    email,
 		Password: hashed,
+		Role:     role,
 	}
 
 	return u.repo.Create(user)
 }
 
 // LOGIN
-func (u *AuthUsecase) Login(email, password string) (string, error) {
+func (u *AuthUsecase) Login(email, password string) (*domain.User, error) {
 	user, err := u.repo.FindByEmail(email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return nil, err
 	}
 
-	err = bcrypt.Compare(user.Password, password)
-	if err != nil {
-		return "", errors.New("invalid email or password")
+	// cek password (bcrypt)
+	if err := bcrypt.Compare(user.Password, password); err != nil {
+		return nil, err
 	}
 
-	token, err := jwt.GenerateToken(user.ID)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
+	return user, nil
 }

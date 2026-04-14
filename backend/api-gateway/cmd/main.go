@@ -1,62 +1,76 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"fmt"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 )
 
-var jwtSecret = []byte("secret")
-
 func main() {
+	godotenv.Load()
+
+	secret := []byte(os.Getenv("JWT_SECRET"))
+
 	r := gin.Default()
 
-	// public route
-	r.Any("/auth/*path", proxy("/auth", "http://auth-service:8081"))
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
-	// protected route
-	r.Any("/tickets/*path", authMiddleware(), proxy("/tickets", "http://ticket-service:8082"))
+	r.Any("/auth/*path", proxy("/auth", os.Getenv("AUTH_SERVICE_URL")))
 
-	log.Println("🚀 API Gateway running on :8080")
-	r.Run(":8080")
+	r.Any("/tickets/*path",
+		authMiddleware(secret),
+		proxy("/tickets", os.Getenv("TICKET_SERVICE_URL")),
+	)
+
+	r.Run(":" + os.Getenv("APP_PORT"))
 }
 
-func proxy(prefix string, target string) gin.HandlerFunc {
+func proxy(prefix, target string) gin.HandlerFunc {
 	url, _ := url.Parse(target)
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	return func(c *gin.Context) {
-		// strip prefix
-		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, prefix)
+		path := strings.TrimPrefix(c.Request.URL.Path, prefix)
 
+		// 🔥 HANDLE ROOT CASE
+		if path == "" || path == "/" {
+			path = prefix // jadi "/tickets"
+		}
+
+		c.Request.URL.Path = path
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
 
-func authMiddleware() gin.HandlerFunc {
+func authMiddleware(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
-			return
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		tokenString := strings.TrimPrefix(
+			c.GetHeader("Authorization"),
+			"Bearer ",
+		)
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			return secret, nil
 		})
 
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.JSON(401, gin.H{"error": "unauthorized"})
+			c.Abort()
 			return
 		}
+
+		claims := token.Claims.(jwt.MapClaims)
+
+		c.Request.Header.Set("X-User-ID", fmt.Sprintf("%v", claims["user_id"]))
+		c.Request.Header.Set("X-User-ROLE", fmt.Sprintf("%v", claims["role"]))
 
 		c.Next()
 	}

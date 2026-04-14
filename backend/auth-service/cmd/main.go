@@ -8,51 +8,39 @@ import (
 	"auth-service/internal/domain"
 	"auth-service/internal/repository"
 	"auth-service/internal/usecase"
+	"auth-service/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found")
+	godotenv.Load()
+
+	if os.Getenv("JWT_SECRET") == "" {
+		log.Fatal("JWT_SECRET required")
 	}
+
+	logger.Init("auth-service")
 
 	port := os.Getenv("APP_PORT")
-	if port == "" {
-		port = "8081"
-	}
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 
-	// ✅ CONNECT DB
-	db, err := repository.NewPostgresDB()
-	if err != nil {
-		log.Fatal("failed to connect database:", err)
-	}
+	db, _ := repository.NewPostgresDB()
+	db.AutoMigrate(&domain.User{})
 
-	log.Println("Database connected")
+	repo := repository.NewUserRepository(db)
+	usecase := usecase.NewAuthUsecase(repo)
 
-	// ✅ MIGRATION
-	err = db.AutoMigrate(&domain.User{})
-	if err != nil {
-		log.Fatal("migration failed:", err)
-	}
+	handler := http.NewAuthHandler(usecase, jwtSecret)
 
-	log.Println("Migration done")
-
-	// ✅ REPOSITORY
-	userRepo := repository.NewUserRepository(db)
-
-	// ✅ USECASE
-	authUsecase := usecase.NewAuthUsecase(userRepo)
-
-	// ✅ HANDLER
-	authHandler := http.NewAuthHandler(authUsecase)
-
-	// ✅ ROUTER
 	r := gin.Default()
-	http.RegisterRoutes(r, authHandler)
 
-	log.Println("Server running on port", port)
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	http.RegisterRoutes(r, handler)
+
 	r.Run(":" + port)
 }

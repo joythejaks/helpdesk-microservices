@@ -2,63 +2,87 @@ package http
 
 import (
 	"auth-service/internal/usecase"
-	"net/http"
+	"auth-service/pkg/logger"
+	"auth-service/pkg/response"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthHandler struct {
-	usecase *usecase.AuthUsecase
+	usecase   *usecase.AuthUsecase
+	jwtSecret []byte
 }
 
-func NewAuthHandler(u *usecase.AuthUsecase) *AuthHandler {
-	return &AuthHandler{u}
+func NewAuthHandler(u *usecase.AuthUsecase, jwtSecret []byte) *AuthHandler {
+	return &AuthHandler{
+		usecase:   u,
+		jwtSecret: jwtSecret,
+	}
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+		Role     string `json:"role"` // 🔥 tambah ini
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, 400, "invalid input")
 		return
 	}
 
-	err := h.usecase.Register(req.Email, req.Password)
+	// default role
+	if req.Role == "" {
+		req.Role = "user"
+	}
+
+	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, 500, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "registered"})
+	response.Success(c, "registered")
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, 400, "invalid input")
 		return
 	}
 
-	token, err := h.usecase.Login(req.Email, req.Password)
+	user, err := h.usecase.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		response.Error(c, 401, "invalid credentials")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"role":    user.Role,
+		"exp":     time.Now().Add(time.Hour * 2).Unix(), // 🔥 2 jam
+	})
+
+	tokenString, _ := token.SignedString(h.jwtSecret)
+
+	logger.Log.WithField("user_id", user.ID).Info("login")
+
+	response.Success(c, gin.H{
+		"token": tokenString,
+	})
 }
 
 func RegisterRoutes(r *gin.Engine, h *AuthHandler) {
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "auth-service running"})
-	})
 
 	r.POST("/register", h.Register)
 	r.POST("/login", h.Login)
