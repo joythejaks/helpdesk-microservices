@@ -30,7 +30,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, 400, "invalid input")
+		response.Error(c, 400, "invalid input", "bad_request")
 		return
 	}
 
@@ -41,7 +41,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
-		response.Error(c, 500, err.Error())
+		response.Error(c, 500, err.Error(), "internal_error")
 		return
 	}
 
@@ -57,13 +57,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, 400, "invalid input")
+		response.Error(c, 400, "invalid input", "bad_request")
 		return
 	}
 
 	user, err := h.usecase.Login(req.Email, req.Password)
 	if err != nil {
-		response.Error(c, 401, "invalid credentials")
+		response.Error(c, 401, "invalid credentials", "unauthorized")
 		return
 	}
 

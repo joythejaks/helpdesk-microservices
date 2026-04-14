@@ -1,15 +1,14 @@
 package main
 
 import (
-	"log"
-	"os"
-
 	"ticket-service/internal/delivery/http"
 	"ticket-service/internal/delivery/messaging"
 	"ticket-service/internal/domain"
 	"ticket-service/internal/repository"
 	"ticket-service/internal/usecase"
+	"ticket-service/pkg/config"
 	"ticket-service/pkg/logger"
+	"ticket-service/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -18,16 +17,16 @@ import (
 func main() {
 	godotenv.Load()
 
-	port := os.Getenv("APP_PORT")
-	rabbitURL := os.Getenv("RABBITMQ_URL")
-
-	// 🔥 INIT LOGGER
+	config.Load()
 	logger.Init("ticket-service")
+
+	port := config.AppConfig.AppPort
+	rabbitURL := config.AppConfig.RabbitMQURL
 
 	// DB
 	db, err := repository.NewPostgresDB()
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal("failed to connect DB:", err)
 	}
 
 	db.AutoMigrate(&domain.Ticket{})
@@ -37,20 +36,24 @@ func main() {
 	usecase := usecase.NewTicketUsecase(repo)
 
 	// RabbitMQ
-	publisher, _ := messaging.NewPublisher(rabbitURL)
+	publisher, err := messaging.NewPublisher(rabbitURL)
+	if err != nil {
+		logger.Log.Warn("rabbitmq not ready:", err)
+	}
 
 	handler := http.NewTicketHandler(usecase, publisher)
 
 	r := gin.Default()
 
-	// health check
+	// health
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		response.Success(c, "ok")
 	})
 
 	// endpoint
 	r.POST("/tickets", handler.Create)
 
-	log.Println("🚀 Ticket service running on", port)
+	logger.Log.Info("ticket-service running on port " + port)
+
 	r.Run(":" + port)
 }

@@ -35,7 +35,7 @@ func (h *TicketHandler) Create(c *gin.Context) {
 	var req CreateTicketRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, 400, "invalid input")
+		response.Error(c, 400, "invalid input", "BAD_REQUEST")
 		return
 	}
 
@@ -43,12 +43,12 @@ func (h *TicketHandler) Create(c *gin.Context) {
 	role := c.GetHeader("X-User-ROLE")
 
 	if userHeader == "" {
-		response.Error(c, 401, "unauthorized")
+		response.Error(c, 401, "unauthorized", "UNAUTHORIZED")
 		return
 	}
 
 	if role != "user" && role != "admin" {
-		response.Error(c, 403, "forbidden")
+		response.Error(c, 403, "forbidden", "FORBIDDEN")
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *TicketHandler) Create(c *gin.Context) {
 	err := h.usecase.Create(&ticket)
 	if err != nil {
 		logger.Log.Error(err)
-		response.Error(c, 500, "failed create ticket")
+		response.Error(c, 500, "failed create ticket", "INTERNAL_ERROR")
 		return
 	}
 

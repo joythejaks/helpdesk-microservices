@@ -4,33 +4,43 @@ import (
 	"fmt"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
+
+	"api-gateway/pkg/config"
+	"api-gateway/pkg/logger"
+	"api-gateway/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	godotenv.Load()
 
-	secret := []byte(os.Getenv("JWT_SECRET"))
+	config.Load()
+	logger.Init("api-gateway")
+
+	secret := []byte(config.AppConfig.JWTSecret)
 
 	r := gin.Default()
 
+	// ✅ health
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		response.Success(c, "ok")
 	})
 
-	r.Any("/auth/*path", proxy("/auth", os.Getenv("AUTH_SERVICE_URL")))
+	// ✅ auth (no middleware)
+	r.Any("/auth/*path", proxy("/auth", config.AppConfig.AuthServiceURL))
 
+	// ✅ tickets (with auth)
 	r.Any("/tickets/*path",
 		authMiddleware(secret),
-		proxy("/tickets", os.Getenv("TICKET_SERVICE_URL")),
+		proxy("/tickets", config.AppConfig.TicketServiceURL),
 	)
 
-	r.Run(":" + os.Getenv("APP_PORT"))
+	r.Run(":" + config.AppConfig.AppPort)
 }
 
 func proxy(prefix, target string) gin.HandlerFunc {
@@ -40,37 +50,64 @@ func proxy(prefix, target string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, prefix)
 
-		// 🔥 HANDLE ROOT CASE
 		if path == "" || path == "/" {
-			path = prefix // jadi "/tickets"
+			path = prefix
 		}
 
 		c.Request.URL.Path = path
+
+		logger.Log.WithFields(logrus.Fields{
+			"path":   c.Request.URL.Path,
+			"target": target,
+		}).Info("proxy request")
+
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
 
 func authMiddleware(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := strings.TrimPrefix(
-			c.GetHeader("Authorization"),
-			"Bearer ",
-		)
+
+		authHeader := c.GetHeader("Authorization")
+
+		if authHeader == "" {
+			response.Error(c, 401, "missing token", "UNAUTHORIZED")
+			c.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return secret, nil
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(401, gin.H{"error": "unauthorized"})
+			logger.Log.WithError(err).Warn("invalid token")
+
+			response.Error(c, 401, "invalid token", "UNAUTHORIZED")
 			c.Abort()
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			response.Error(c, 401, "invalid token claims", "UNAUTHORIZED")
+			c.Abort()
+			return
+		}
 
-		c.Request.Header.Set("X-User-ID", fmt.Sprintf("%v", claims["user_id"]))
-		c.Request.Header.Set("X-User-ROLE", fmt.Sprintf("%v", claims["role"]))
+		userID := fmt.Sprintf("%v", claims["user_id"])
+		role := fmt.Sprintf("%v", claims["role"])
+
+		// inject ke downstream
+		c.Request.Header.Set("X-User-ID", userID)
+		c.Request.Header.Set("X-User-ROLE", role)
+
+		logger.Log.WithFields(logrus.Fields{
+			"user_id": userID,
+			"role":    role,
+		}).Info("authenticated request")
 
 		c.Next()
 	}

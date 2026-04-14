@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"net/http"
-	"os"
 
 	"notification-service/internal/consumer"
 	"notification-service/internal/delivery/ws"
+	"notification-service/pkg/config"
+	"notification-service/pkg/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -14,10 +14,13 @@ import (
 func main() {
 	godotenv.Load()
 
-	port := os.Getenv("APP_PORT")
-	rabbitURL := os.Getenv("RABBITMQ_URL")
+	config.Load()
+	logger.Init("notification-service")
 
-	// 🔥 start consumer TANPA crash
+	port := config.AppConfig.AppPort
+	rabbitURL := config.AppConfig.RabbitMQURL
+
+	// 🔥 start consumer (non-blocking)
 	consumer.StartConsumer(rabbitURL)
 
 	// websocket
@@ -25,6 +28,12 @@ func main() {
 
 	go ws.HandleMessages()
 
-	log.Println("🚀 Notification service running on", port)
+	// ✅ health endpoint
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
+
+	logger.Log.Info("notification-service running on port " + port)
+
 	http.ListenAndServe(":"+port, nil)
 }
