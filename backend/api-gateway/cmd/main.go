@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 
 	"api-gateway/pkg/config"
 	"api-gateway/pkg/logger"
@@ -26,44 +25,98 @@ func main() {
 
 	r := gin.Default()
 
-	// ✅ health
+	// 🔥 FIX REDIRECT LOOP
+	r.RedirectTrailingSlash = false
+	r.RedirectFixedPath = false
+
+	// =======================
+	// HEALTH
+	// =======================
 	r.GET("/health", func(c *gin.Context) {
 		response.Success(c, "ok")
 	})
 
-	// ✅ auth (no middleware)
-	r.Any("/auth/*path", proxy("/auth", config.AppConfig.AuthServiceURL))
+	// =======================
+	// AUTH (TRIM PREFIX)
+	// =======================
+	r.Any("/auth/*path", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
 
-	// ✅ tickets (with auth)
+	// =======================
+	// TICKETS (ROOT FIX)
+	// =======================
+	r.Any("/tickets",
+		authMiddleware(secret),
+		proxy(config.AppConfig.TicketServiceURL),
+	)
+
+	// =======================
+	// TICKETS (NESTED)
+	// =======================
 	r.Any("/tickets/*path",
 		authMiddleware(secret),
-		proxy("/tickets", config.AppConfig.TicketServiceURL),
+		proxy(config.AppConfig.TicketServiceURL),
 	)
+
+	logger.Log.Info("api-gateway running on port " + config.AppConfig.AppPort)
 
 	r.Run(":" + config.AppConfig.AppPort)
 }
 
-func proxy(prefix, target string) gin.HandlerFunc {
+//
+// =======================
+// 🔥 PROXY (KEEP PREFIX)
+// =======================
+//
+
+func proxy(target string) gin.HandlerFunc {
 	url, _ := url.Parse(target)
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	return func(c *gin.Context) {
-		path := strings.TrimPrefix(c.Request.URL.Path, prefix)
 
-		if path == "" || path == "/" {
-			path = prefix
+		logger.Log.WithFields(logrus.Fields{
+			"path":   c.Request.URL.Path,
+			"target": target,
+		}).Info("proxy ticket")
+
+		proxy.ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+//
+// =======================
+// 🔥 PROXY AUTH (TRIM)
+// =======================
+//
+
+func proxyTrim(prefix, target string) gin.HandlerFunc {
+	url, _ := url.Parse(target)
+	proxy := httputil.NewSingleHostReverseProxy(url)
+
+	return func(c *gin.Context) {
+
+		path := c.Request.URL.Path[len(prefix):]
+
+		if path == "" {
+			path = "/"
 		}
 
 		c.Request.URL.Path = path
 
 		logger.Log.WithFields(logrus.Fields{
-			"path":   c.Request.URL.Path,
+			"path":   path,
 			"target": target,
-		}).Info("proxy request")
+		}).Info("proxy auth")
 
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
+
+//
+// =======================
+// 🔥 JWT MIDDLEWARE
+// =======================
+//
 
 func authMiddleware(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -76,7 +129,10 @@ func authMiddleware(secret []byte) gin.HandlerFunc {
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		tokenString := authHeader
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			tokenString = authHeader[7:]
+		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return secret, nil
@@ -100,7 +156,7 @@ func authMiddleware(secret []byte) gin.HandlerFunc {
 		userID := fmt.Sprintf("%v", claims["user_id"])
 		role := fmt.Sprintf("%v", claims["role"])
 
-		// inject ke downstream
+		// inject ke downstream service
 		c.Request.Header.Set("X-User-ID", userID)
 		c.Request.Header.Set("X-User-ROLE", role)
 

@@ -45,6 +45,9 @@ func main() {
 
 	r := gin.Default()
 
+	r.RedirectTrailingSlash = false
+	r.RedirectFixedPath = false
+
 	// health
 	r.GET("/health", func(c *gin.Context) {
 		response.Success(c, "ok")
@@ -52,6 +55,8 @@ func main() {
 
 	// endpoint
 	r.POST("/tickets", handler.Create)
+	r.GET("/tickets", handler.GetTickets)
+	r.GET("/tickets/:id", handler.GetByID)
 
 	logger.Log.Info("ticket-service running on port " + port)
 

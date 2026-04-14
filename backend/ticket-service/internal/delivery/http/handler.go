@@ -77,3 +77,50 @@ func (h *TicketHandler) Create(c *gin.Context) {
 
 	response.Success(c, "ticket created")
 }
+
+func (h *TicketHandler) GetTickets(c *gin.Context) {
+
+	userHeader := c.GetHeader("X-User-ID")
+	role := c.GetHeader("X-User-ROLE")
+
+	var userID uint
+	fmt.Sscanf(userHeader, "%d", &userID)
+
+	// pagination
+	page := 1
+	limit := 10
+
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &page)
+	}
+
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+
+	offset := (page - 1) * limit
+
+	tickets, err := h.usecase.GetTickets(userID, role, limit, offset)
+	if err != nil {
+		response.Error(c, 500, "failed get tickets", "INTERNAL_ERROR")
+		return
+	}
+
+	response.Success(c, tickets)
+}
+
+func (h *TicketHandler) GetByID(c *gin.Context) {
+
+	idParam := c.Param("id")
+
+	var id uint
+	fmt.Sscanf(idParam, "%d", &id)
+
+	ticket, err := h.usecase.GetTicketByID(id)
+	if err != nil {
+		response.Error(c, 404, "ticket not found", "NOT_FOUND")
+		return
+	}
+
+	response.Success(c, ticket)
+}
