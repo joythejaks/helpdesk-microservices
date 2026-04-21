@@ -6,6 +6,7 @@ import (
 	"auth-service/pkg/logger"
 	"auth-service/pkg/response"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -101,7 +102,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"exp":     time.Now().Add(2 * time.Hour).Unix(),
 	})
 
-	accessTokenString, _ := accessToken.SignedString(h.jwtSecret)
+	accessTokenString, err := accessToken.SignedString(h.jwtSecret)
+	if err != nil {
+		logger.Log.WithError(err).Error("failed to sign access token")
+		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
+		return
+	}
 
 	// 🔥 REFRESH TOKEN
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -109,14 +115,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 	})
 
-	refreshTokenString, _ := refreshToken.SignedString(h.jwtSecret)
+	refreshTokenString, err := refreshToken.SignedString(h.jwtSecret)
+	if err != nil {
+		logger.Log.WithError(err).Error("failed to sign refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
+		return
+	}
 
 	// 🔥 SIMPAN (ROTATE)
-	h.refreshRepo.DeleteByUser(user.ID)
-	h.refreshRepo.Save(&domain.RefreshToken{
+	if err := h.refreshRepo.DeleteByUser(user.ID); err != nil {
+		logger.Log.WithError(err).Error("failed to rotate refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
+		return
+	}
+	if err := h.refreshRepo.Save(&domain.RefreshToken{
 		UserID: user.ID,
 		Token:  refreshTokenString,
-	})
+	}); err != nil {
+		logger.Log.WithError(err).Error("failed to save refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
+		return
+	}
 
 	logger.Log.WithField("user_id", user.ID).Info("login")
 
@@ -169,7 +188,12 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		"exp":     time.Now().Add(2 * time.Hour).Unix(),
 	})
 
-	accessString, _ := newAccess.SignedString(h.jwtSecret)
+	accessString, err := newAccess.SignedString(h.jwtSecret)
+	if err != nil {
+		logger.Log.WithError(err).Error("failed to sign access token")
+		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
+		return
+	}
 
 	// 🔥 new refresh token (ROTATION)
 	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -177,14 +201,27 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 	})
 
-	refreshString, _ := newRefresh.SignedString(h.jwtSecret)
+	refreshString, err := newRefresh.SignedString(h.jwtSecret)
+	if err != nil {
+		logger.Log.WithError(err).Error("failed to sign refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
+		return
+	}
 
 	// 🔥 replace old token
-	h.refreshRepo.DeleteByUser(userID)
-	h.refreshRepo.Save(&domain.RefreshToken{
+	if err := h.refreshRepo.DeleteByUser(userID); err != nil {
+		logger.Log.WithError(err).Error("failed to rotate refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
+		return
+	}
+	if err := h.refreshRepo.Save(&domain.RefreshToken{
 		UserID: userID,
 		Token:  refreshString,
-	})
+	}); err != nil {
+		logger.Log.WithError(err).Error("failed to save refresh token")
+		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
+		return
+	}
 
 	response.Success(c, gin.H{
 		"access_token":  accessString,
@@ -211,7 +248,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	h.refreshRepo.DeleteByUser(userID)
+	if err := h.refreshRepo.DeleteByUser(userID); err != nil {
+		logger.Log.WithError(err).Error("failed to logout")
+		response.Error(c, http.StatusInternalServerError, "failed logout", "internal_error")
+		return
+	}
 
 	response.Success(c, "logged out")
 }

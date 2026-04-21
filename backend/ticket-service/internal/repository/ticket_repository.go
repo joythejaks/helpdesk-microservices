@@ -6,19 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type TicketRepository interface {
-	Create(ticket *domain.Ticket) error
-
-	FindAll(limit, offset int) ([]domain.Ticket, error)
-	FindByUser(userID uint, limit, offset int) ([]domain.Ticket, error)
-	FindByID(id uint) (*domain.Ticket, error)
-}
-
 type ticketRepository struct {
 	db *gorm.DB
 }
 
-func NewTicketRepository(db *gorm.DB) TicketRepository {
+func NewTicketRepository(db *gorm.DB) domain.TicketRepository {
 	return &ticketRepository{db}
 }
 

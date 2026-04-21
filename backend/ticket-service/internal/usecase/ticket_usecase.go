@@ -2,14 +2,13 @@ package usecase
 
 import (
 	"ticket-service/internal/domain"
-	"ticket-service/internal/repository"
 )
 
 type TicketUsecase struct {
-	repo repository.TicketRepository
+	repo domain.TicketRepository
 }
 
-func NewTicketUsecase(r repository.TicketRepository) *TicketUsecase {
+func NewTicketUsecase(r domain.TicketRepository) *TicketUsecase {
 	return &TicketUsecase{repo: r}
 }
 

@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: auth_db
     ports:
       - "5433:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U auth -d auth_db"]
       interval: 5s
@@ -21,6 +23,8 @@ services:
       POSTGRES_DB: ticket_db
     ports:
       - "5434:5432"
+    volumes:
+      - ticket_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ticket -d ticket_db"]
       interval: 5s
@@ -33,10 +37,12 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-      RABBITMQ_ERLANG_COOKIE: "secretcookie"
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-secretcookie}
       HOME: /tmp
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
@@ -85,4 +91,6 @@ services:
       - ticket-service
 
 volumes:
+  auth_db_data:
+  ticket_db_data:
   rabbitmq_data:
