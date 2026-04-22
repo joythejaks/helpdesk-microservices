@@ -24,10 +24,22 @@ func main() {
 
 	secret := []byte(config.AppConfig.JWTSecret)
 
+	// =======================
+	// VALIDATE URLS AT STARTUP
+	// =======================
+	authURL, err := url.Parse(config.AppConfig.AuthServiceURL)
+	if err != nil || authURL.Host == "" {
+		logger.Log.Fatal("invalid AUTH_SERVICE_URL: ", config.AppConfig.AuthServiceURL)
+	}
+	ticketURL, err := url.Parse(config.AppConfig.TicketServiceURL)
+	if err != nil || ticketURL.Host == "" {
+		logger.Log.Fatal("invalid TICKET_SERVICE_URL: ", config.AppConfig.TicketServiceURL)
+	}
+
 	r := gin.Default()
 
 	// =======================
-	// 🔥 FIX CORS
+	// CORS
 	// =======================
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{"*"},
@@ -36,7 +48,7 @@ func main() {
 	}))
 
 	// =======================
-	// 🔥 FIX REDIRECT LOOP
+	// FIX REDIRECT LOOP
 	// =======================
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
@@ -51,16 +63,16 @@ func main() {
 	// =======================
 	// AUTH (PUBLIC)
 	// =======================
-	r.Any("/auth/login", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
-	r.Any("/auth/register", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
-	r.Any("/auth/refresh", proxyTrim("/auth", config.AppConfig.AuthServiceURL))
+	r.Any("/auth/login", proxyTrim("/auth", authURL))
+	r.Any("/auth/register", proxyTrim("/auth", authURL))
+	r.Any("/auth/refresh", proxyTrim("/auth", authURL))
 
 	// =======================
-	// 🔥 AUTH (PROTECTED)
+	// AUTH (PROTECTED)
 	// =======================
 	r.POST("/auth/logout",
 		authMiddleware(secret),
-		proxyTrim("/auth", config.AppConfig.AuthServiceURL),
+		proxyTrim("/auth", authURL),
 	)
 
 	// =======================
@@ -68,7 +80,7 @@ func main() {
 	// =======================
 	r.Any("/tickets",
 		authMiddleware(secret),
-		proxy(config.AppConfig.TicketServiceURL),
+		proxyTo(ticketURL),
 	)
 
 	// =======================
@@ -76,75 +88,51 @@ func main() {
 	// =======================
 	r.Any("/tickets/*path",
 		authMiddleware(secret),
-		proxy(config.AppConfig.TicketServiceURL),
+		proxyTo(ticketURL),
 	)
 
 	logger.Log.Info("api-gateway running on port " + config.AppConfig.AppPort)
-
 	r.Run(":" + config.AppConfig.AppPort)
 }
 
-//
-// =======================
-// 🔥 PROXY (KEEP PREFIX)
-// =======================
-//
-
-func proxy(target string) gin.HandlerFunc {
-	url, _ := url.Parse(target)
-	proxy := httputil.NewSingleHostReverseProxy(url)
+// proxyTo reverse-proxies to a pre-parsed target URL, keeping the request path.
+func proxyTo(target *url.URL) gin.HandlerFunc {
+	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	return func(c *gin.Context) {
-
 		logger.Log.WithFields(logrus.Fields{
 			"path":   c.Request.URL.Path,
-			"target": target,
+			"target": target.Host,
 		}).Info("proxy request")
 
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
 
-//
-// =======================
-// 🔥 PROXY AUTH (TRIM)
-// =======================
-//
-
-func proxyTrim(prefix, target string) gin.HandlerFunc {
-	url, _ := url.Parse(target)
-	proxy := httputil.NewSingleHostReverseProxy(url)
+// proxyTrim reverse-proxies to target, stripping the given prefix from the path.
+func proxyTrim(prefix string, target *url.URL) gin.HandlerFunc {
+	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	return func(c *gin.Context) {
-
 		path := c.Request.URL.Path[len(prefix):]
-
 		if path == "" {
 			path = "/"
 		}
-
 		c.Request.URL.Path = path
 
 		logger.Log.WithFields(logrus.Fields{
 			"path":   path,
-			"target": target,
+			"target": target.Host,
 		}).Info("proxy auth")
 
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
 
-//
-// =======================
-// 🔥 JWT MIDDLEWARE
-// =======================
-//
-
+// authMiddleware validates the Bearer JWT and injects X-User-ID / X-User-ROLE headers.
 func authMiddleware(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		authHeader := c.GetHeader("Authorization")
-
 		if authHeader == "" {
 			response.Error(c, 401, "missing token", "UNAUTHORIZED")
 			c.Abort()
@@ -157,12 +145,15 @@ func authMiddleware(secret []byte) gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Cegah algorithm confusion attack — hanya izinkan HMAC
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
 			return secret, nil
 		})
 
 		if err != nil || !token.Valid {
 			logger.Log.WithError(err).Warn("invalid token")
-
 			response.Error(c, 401, "invalid token", "UNAUTHORIZED")
 			c.Abort()
 			return
@@ -178,7 +169,6 @@ func authMiddleware(secret []byte) gin.HandlerFunc {
 		userID := fmt.Sprintf("%v", claims["user_id"])
 		role := fmt.Sprintf("%v", claims["role"])
 
-		// inject ke downstream service
 		c.Request.Header.Set("X-User-ID", userID)
 		c.Request.Header.Set("X-User-ROLE", role)
 

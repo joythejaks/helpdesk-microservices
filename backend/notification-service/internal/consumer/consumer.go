@@ -9,7 +9,10 @@ import (
 	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 
-const reconnectDelay = 2 * time.Second
+const (
+	startupRetryDelay = 3 * time.Second // jeda antar retry saat startup
+	reconnectDelay    = 2 * time.Second // jeda sebelum reconnect setelah disconnect
+)
 
 func StartConsumer(url string) {
 	go func() {
@@ -25,7 +28,7 @@ func StartConsumer(url string) {
 }
 
 func consume(url string) error {
-	conn, err := dialWithRetry(url, 15, reconnectDelay)
+	conn, err := dialWithRetry(url, 15, startupRetryDelay)
 	if err != nil {
 		return err
 	}
