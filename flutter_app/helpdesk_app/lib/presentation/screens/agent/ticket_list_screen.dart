@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../models/ticket.dart';
-import '../bloc/ticket/ticket_bloc.dart';
-import '../widgets/app_text_field.dart';
-import '../widgets/header_bar.dart';
-import '../widgets/status_filter.dart';
-import '../widgets/ticket_card.dart';
+import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
+import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
+import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
+import 'package:helpdesk_app/presentation/widgets/status_filter.dart';
+import 'package:helpdesk_app/presentation/widgets/ticket_card.dart';
 
 class TicketListScreen extends StatelessWidget {
   const TicketListScreen({super.key, required this.onOpenTicket});

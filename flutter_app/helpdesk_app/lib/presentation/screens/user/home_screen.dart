@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../models/ticket.dart';
-import '../bloc/ticket/ticket_bloc.dart';
-import '../widgets/gradient_button.dart';
-import '../widgets/header_bar.dart';
-import '../widgets/metric_card.dart';
-import '../widgets/ticket_card.dart';
+import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
+import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
+import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
+import 'package:helpdesk_app/presentation/widgets/metric_card.dart';
+import 'package:helpdesk_app/presentation/widgets/ticket_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({

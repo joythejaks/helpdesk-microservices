@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-import '../bloc/auth/auth_bloc.dart';
-import '../widgets/app_frame.dart';
-import '../widgets/app_mark.dart';
-import '../widgets/app_text_field.dart';
-import '../widgets/gradient_button.dart';
+import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
+import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
+import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
+import 'package:helpdesk_app/presentation/widgets/app_mark.dart';
+import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
+import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

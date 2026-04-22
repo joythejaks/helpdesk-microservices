@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
+import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 
 class SurfaceCard extends StatelessWidget {
   const SurfaceCard({super.key, required this.child, this.onTap});

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-import '../../models/ticket.dart';
-import '../widgets/app_frame.dart';
-import '../widgets/detail_row.dart';
-import '../widgets/gradient_button.dart';
-import '../widgets/header_bar.dart';
-import '../widgets/status_chip.dart';
-import '../widgets/surface_card.dart';
-import '../widgets/timeline_item.dart';
+import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
+import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
+import 'package:helpdesk_app/presentation/widgets/detail_row.dart';
+import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
+import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
+import 'package:helpdesk_app/presentation/widgets/status_chip.dart';
+import 'package:helpdesk_app/presentation/widgets/surface_card.dart';
+import 'package:helpdesk_app/presentation/widgets/timeline_item.dart';
 
 class TicketDetailScreen extends StatelessWidget {
   const TicketDetailScreen({super.key, required this.ticket});

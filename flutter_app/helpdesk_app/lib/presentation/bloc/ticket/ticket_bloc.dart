@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/ticket_repository.dart';
-import '../../../models/ticket.dart';
+import 'package:helpdesk_app/data/ticket_repository.dart';
+import 'package:helpdesk_app/models/ticket.dart';
 
 sealed class TicketEvent {
   const TicketEvent();

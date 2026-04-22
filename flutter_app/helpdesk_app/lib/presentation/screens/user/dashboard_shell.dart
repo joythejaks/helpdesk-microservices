@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-import '../../models/ticket.dart';
-import '../bloc/ticket/ticket_bloc.dart';
-import '../widgets/app_frame.dart';
-import '../widgets/glass_nav_bar.dart';
-import 'agent_dashboard_screen.dart';
-import 'create_ticket_screen.dart';
-import 'home_screen.dart';
-import 'ticket_detail_screen.dart';
-import 'ticket_list_screen.dart';
+import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
+import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
+import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
+import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
+import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
+import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
+import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
 
 class DashboardShell extends StatefulWidget {
   const DashboardShell({super.key});

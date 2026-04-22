@@ -8,8 +8,9 @@ import 'data/auth_repository.dart';
 import 'data/ticket_repository.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
-import 'presentation/screens/dashboard_shell.dart';
-import 'presentation/screens/login_screen.dart';
+import 'presentation/screens/user/dashboard_shell.dart';
+import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/screens/auth/splash_screen.dart';
 
 void main() {
   runApp(const HelpdeskApp());
@@ -53,15 +54,19 @@ class HelpdeskApp extends StatelessWidget {
           title: 'Helpdesk Ticketing System',
           debugShowCheckedModeBanner: false,
           theme: HelpdeskTheme.light(),
-          home: BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, state) {
-              if (state is Authenticated) {
-                return const DashboardShell();
-              }
-
-              return const LoginScreen();
-            },
-          ),
+          initialRoute: '/splash',
+          routes: {
+            '/splash': (context) => const SplashScreen(),
+            '/login': (context) => BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, state) {
+                if (state is Authenticated) {
+                  return const DashboardShell();
+                }
+                return const LoginScreen();
+              },
+            ),
+            '/dashboard': (context) => const DashboardShell(),
+          },
         ),
       ),
     );

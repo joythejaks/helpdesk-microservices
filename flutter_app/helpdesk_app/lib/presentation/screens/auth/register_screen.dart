@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../bloc/auth/auth_bloc.dart';
-import '../widgets/app_frame.dart';
-import '../widgets/app_text_field.dart';
-import '../widgets/gradient_button.dart';
-import '../widgets/header_bar.dart';
-import 'dashboard_shell.dart';
+import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
+import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
+import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
+import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
+import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,11 +17,15 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _namaController = TextEditingController();
+  final _departemenController = TextEditingController();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _namaController.dispose();
+    _departemenController.dispose();
     super.dispose();
   }
 
@@ -31,10 +34,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const DashboardShell()),
-            (route) => false,
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registrasi berhasil')),
           );
+          Navigator.of(context).pop(); // Kembali ke halaman login
         }
 
         if (state is AuthFailure) {
@@ -54,7 +57,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onLeadingTap: () => Navigator.of(context).pop(),
             ),
             const SizedBox(height: 36),
-            const AppTextField(
+            AppTextField(
+              controller: _namaController,
               label: 'Nama lengkap',
               icon: Icons.person_outline,
             ),
@@ -66,7 +70,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 14),
-            const AppTextField(label: 'Departemen', icon: Icons.apartment),
+            AppTextField(
+              controller: _departemenController,
+              label: 'Departemen',
+              icon: Icons.apartment,
+            ),
             const SizedBox(height: 14),
             AppTextField(
               controller: _passwordController,
@@ -92,10 +100,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _submitRegister() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final nama = _namaController.text.trim();
+    final departemen = _departemenController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || nama.isEmpty || departemen.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua field harus diisi')),
+      );
+      return;
+    }
+
     context.read<AuthBloc>().add(
       AuthRegisterSubmitted(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
+        // Jika perlu, tambahkan nama dan departemen ke event
       ),
     );
   }

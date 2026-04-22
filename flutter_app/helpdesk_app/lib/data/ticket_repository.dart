@@ -1,6 +1,6 @@
-import '../core/network/api_client.dart';
-import '../core/storage/token_storage.dart';
-import '../models/ticket.dart';
+import 'package:helpdesk_app/core/network/api_client.dart';
+import 'package:helpdesk_app/core/storage/token_storage.dart';
+import 'package:helpdesk_app/models/ticket.dart';
 
 class TicketRepository {
   TicketRepository({

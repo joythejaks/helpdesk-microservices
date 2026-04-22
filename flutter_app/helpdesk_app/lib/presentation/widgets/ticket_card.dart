@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../models/ticket.dart';
+import 'package:helpdesk_app/models/ticket.dart';
 import 'status_chip.dart';
 import 'surface_card.dart';
 
