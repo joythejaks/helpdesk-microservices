@@ -1,10 +1,11 @@
-package usecase
+package usecase_test
 
 import (
 	"errors"
 	"testing"
 
 	"ticket-service/internal/domain"
+	"ticket-service/internal/usecase"
 )
 
 type fakeTicketRepository struct {
@@ -44,9 +45,9 @@ func TestGetTicketsUsesFindAllForAdmin(t *testing.T) {
 	repo := &fakeTicketRepository{
 		tickets: []domain.Ticket{{ID: 1, Title: "Admin ticket"}},
 	}
-	usecase := NewTicketUsecase(repo)
+	uc := usecase.NewTicketUsecase(repo)
 
-	tickets, err := usecase.GetTickets(10, "admin", 10, 0)
+	tickets, err := uc.GetTickets(10, "admin", 10, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -66,9 +67,9 @@ func TestGetTicketsUsesFindByUserForRegularUser(t *testing.T) {
 	repo := &fakeTicketRepository{
 		tickets: []domain.Ticket{{ID: 2, Title: "User ticket", UserID: 7}},
 	}
-	usecase := NewTicketUsecase(repo)
+	uc := usecase.NewTicketUsecase(repo)
 
-	tickets, err := usecase.GetTickets(7, "user", 10, 0)
+	tickets, err := uc.GetTickets(7, "user", 10, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

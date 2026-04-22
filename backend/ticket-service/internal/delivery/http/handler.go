@@ -122,8 +122,5 @@ func (h *TicketHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
-		"message": "ticket created",
-		"ticket":  ticket,
-	})
+	response.Success(c, ticket)
 }

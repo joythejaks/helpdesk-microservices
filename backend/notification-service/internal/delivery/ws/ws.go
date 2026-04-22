@@ -4,13 +4,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 )
 
-var clients = make(map[*websocket.Conn]bool)
-var broadcast = make(chan string)
+var (
+	clients   = make(map[*websocket.Conn]bool)
+	clientsMu sync.RWMutex
+	broadcast = make(chan string, 256)
+)
 
 func getSecret() []byte {
 	return []byte(os.Getenv("JWT_SECRET"))
@@ -23,7 +27,6 @@ var upgrader = websocket.Upgrader{
 }
 
 func HandleConnections(w http.ResponseWriter, r *http.Request) {
-
 	tokenString := r.URL.Query().Get("token")
 
 	if tokenString == "" {
@@ -47,14 +50,16 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clientsMu.Lock()
 	clients[conn] = true
+	clientsMu.Unlock()
+
 	log.Println("🔐 WebSocket connected (authorized)")
 }
 
 func HandleMessages() {
-	for {
-		msg := <-broadcast
-
+	for msg := range broadcast {
+		clientsMu.Lock()
 		for client := range clients {
 			err := client.WriteMessage(websocket.TextMessage, []byte(msg))
 			if err != nil {
@@ -62,6 +67,7 @@ func HandleMessages() {
 				delete(clients, client)
 			}
 		}
+		clientsMu.Unlock()
 	}
 }
 

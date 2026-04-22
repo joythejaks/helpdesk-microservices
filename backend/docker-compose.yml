@@ -91,6 +91,8 @@ services:
   api-gateway:
     build: ./api-gateway
     restart: unless-stopped
+    env_file:
+      - ./api-gateway/.env
     ports:
       - "8080:8080"
     depends_on:
