@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -28,13 +29,16 @@ var upgrader = websocket.Upgrader{
 
 func HandleConnections(w http.ResponseWriter, r *http.Request) {
 	tokenString := r.URL.Query().Get("token")
-
 	if tokenString == "" {
 		http.Error(w, "missing token", http.StatusUnauthorized)
 		return
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// cegah algorithm confusion attack
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return getSecret(), nil
 	})
 
@@ -55,6 +59,24 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 	clientsMu.Unlock()
 
 	log.Println("🔐 WebSocket connected (authorized)")
+
+	// goroutine untuk detect disconnect dan cleanup
+	go func() {
+		defer func() {
+			clientsMu.Lock()
+			delete(clients, conn)
+			clientsMu.Unlock()
+			conn.Close()
+			log.Println("🔌 WebSocket disconnected, client removed")
+		}()
+
+		for {
+			// ReadMessage blocks — error berarti client disconnect
+			if _, _, err := conn.ReadMessage(); err != nil {
+				break
+			}
+		}
+	}()
 }
 
 func HandleMessages() {
