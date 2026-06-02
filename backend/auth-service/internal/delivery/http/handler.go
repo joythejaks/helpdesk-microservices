@@ -15,21 +15,13 @@ import (
 
 type AuthHandler struct {
 	usecase     *usecase.AuthUsecase
-	refreshRepo interface {
-		Save(*domain.RefreshToken) error
-		Find(string) (*domain.RefreshToken, error)
-		DeleteByUser(uint) error
-	}
-	jwtSecret []byte
+	refreshRepo domain.RefreshTokenRepository
+	jwtSecret   []byte
 }
 
 func NewAuthHandler(
 	u *usecase.AuthUsecase,
-	refreshRepo interface {
-		Save(*domain.RefreshToken) error
-		Find(string) (*domain.RefreshToken, error)
-		DeleteByUser(uint) error
-	},
+	refreshRepo domain.RefreshTokenRepository,
 	jwtSecret []byte,
 ) *AuthHandler {
 	return &AuthHandler{

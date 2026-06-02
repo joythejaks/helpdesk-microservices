@@ -1,9 +1,9 @@
 package repository
 
 import (
+	"auth-service/pkg/config"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -13,11 +13,11 @@ import (
 func NewPostgresDB() (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_PORT"),
+		config.AppConfig.DBHost,
+		config.AppConfig.DBUser,
+		config.AppConfig.DBPassword,
+		config.AppConfig.DBName,
+		config.AppConfig.DBPort,
 	)
 
 	var db *gorm.DB

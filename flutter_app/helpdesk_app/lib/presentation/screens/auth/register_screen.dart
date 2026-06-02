@@ -94,6 +94,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // Validate email format
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Format email tidak valid')),
+      );
+      return;
+    }
+
     context.read<AuthBloc>().add(
       AuthRegisterSubmitted(email: email, password: password),
     );

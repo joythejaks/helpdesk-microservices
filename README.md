@@ -80,13 +80,11 @@ Authorization: Bearer <access_token>
 
 ## Tests
 
-Run Go tests per service:
+Run Go tests:
 
 ```bash
 cd backend/auth-service && go test ./...
 cd ../ticket-service && go test ./...
-cd ../notification-service && go test ./...
-cd ../api-gateway && go test ./...
 ```
 
 Run Flutter checks:

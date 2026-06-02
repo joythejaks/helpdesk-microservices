@@ -12,13 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 🔥 TAMBAHKAN INI
 type TicketHandler struct {
 	usecase   *usecase.TicketUsecase
 	publisher *messaging.Publisher
 }
 
-// 🔥 TAMBAHKAN INI
 func NewTicketHandler(u *usecase.TicketUsecase, p *messaging.Publisher) *TicketHandler {
 	return &TicketHandler{
 		usecase:   u,
