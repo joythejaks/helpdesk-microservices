@@ -8,6 +8,7 @@ class HeaderBar extends StatelessWidget {
     this.leading,
     this.trailing,
     this.onLeadingTap,
+    this.onTrailingTap,
   });
 
   final String title;
@@ -15,6 +16,7 @@ class HeaderBar extends StatelessWidget {
   final IconData? leading;
   final IconData? trailing;
   final VoidCallback? onLeadingTap;
+  final VoidCallback? onTrailingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,10 @@ class HeaderBar extends StatelessWidget {
           ),
         ),
         if (trailing != null)
-          IconButton.filledTonal(onPressed: () {}, icon: Icon(trailing)),
+          IconButton.filledTonal(
+            onPressed: onTrailingTap,
+            icon: Icon(trailing),
+          ),
       ],
     );
   }

@@ -4,7 +4,6 @@ import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/models/ticket.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/detail_row.dart';
-import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
 import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 import 'package:helpdesk_app/presentation/widgets/status_chip.dart';
 import 'package:helpdesk_app/presentation/widgets/surface_card.dart';
@@ -25,7 +24,7 @@ class TicketDetailScreen extends StatelessWidget {
           children: [
             HeaderBar(
               title: 'Ticket Detail',
-              subtitle: ticket.id,
+              subtitle: '#${ticket.id}',
               leading: Icons.arrow_back,
               onLeadingTap: () => Navigator.of(context).pop(),
             ),
@@ -48,7 +47,9 @@ class TicketDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    ticket.description,
+                    ticket.description.isNotEmpty
+                        ? ticket.description
+                        : 'Tidak ada deskripsi.',
                     style: const TextStyle(
                       color: HelpdeskTheme.onVariant,
                       height: 1.5,
@@ -62,28 +63,37 @@ class TicketDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DetailRow(label: 'Requester', value: ticket.requester),
-                  DetailRow(label: 'Department', value: ticket.department),
-                  DetailRow(label: 'Created', value: ticket.time),
+                  DetailRow(label: 'ID Tiket', value: '#${ticket.id}'),
+                  DetailRow(label: 'Status', value: ticket.status),
+                  DetailRow(label: 'Prioritas', value: ticket.priority),
+                  DetailRow(label: 'Dibuat', value: ticket.time),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            const SurfaceCard(
+            SurfaceCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TimelineItem(title: 'Ticket dibuat', time: '09:10'),
-                  TimelineItem(title: 'Ditugaskan ke agent', time: '09:18'),
-                  TimelineItem(title: 'Diagnosa awal berjalan', time: '09:42'),
+                  Text(
+                    'Timeline',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TimelineItem(title: 'Ticket dibuat', time: ticket.time),
+                  if (ticket.status == 'In Progress' ||
+                      ticket.status == 'Resolved')
+                    const TimelineItem(
+                      title: 'Ditugaskan ke agent',
+                      time: 'Dalam proses',
+                    ),
+                  if (ticket.status == 'Resolved')
+                    const TimelineItem(
+                      title: 'Ticket diselesaikan',
+                      time: 'Selesai',
+                    ),
                 ],
               ),
-            ),
-            const SizedBox(height: 22),
-            GradientButton(
-              label: 'Update Status',
-              icon: Icons.sync,
-              onPressed: () {},
             ),
           ],
         ),

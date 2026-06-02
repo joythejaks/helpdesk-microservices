@@ -41,6 +41,9 @@ class HomeScreen extends StatelessWidget {
         final resolvedCount = tickets
             .where((ticket) => ticket.status == 'Resolved')
             .length;
+        final urgentCount = tickets
+            .where((ticket) => ticket.priority == 'High')
+            .length;
 
         return RefreshIndicator(
           onRefresh: () async {
@@ -67,7 +70,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   const Expanded(
                     child: MetricCard(
-                      value: '0',
+                      value: '$urgentCount',
                       label: 'Urgent',
                       icon: Icons.priority_high,
                     ),
@@ -79,7 +82,8 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const Expanded(
                     child: MetricCard(
-                      value: '91%',
+                      // TODO: fetch from analytics endpoint
+                      value: '-',
                       label: 'SLA',
                       icon: Icons.speed_outlined,
                     ),

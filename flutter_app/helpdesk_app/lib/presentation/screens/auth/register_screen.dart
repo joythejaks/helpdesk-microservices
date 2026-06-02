@@ -17,15 +17,11 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _namaController = TextEditingController();
-  final _departemenController = TextEditingController();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _namaController.dispose();
-    _departemenController.dispose();
     super.dispose();
   }
 
@@ -37,7 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Registrasi berhasil')),
           );
-          Navigator.of(context).pop(); // Kembali ke halaman login
+          Navigator.of(context).pop();
         }
 
         if (state is AuthFailure) {
@@ -58,22 +54,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 36),
             AppTextField(
-              controller: _namaController,
-              label: 'Nama lengkap',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 14),
-            AppTextField(
               controller: _emailController,
               label: 'Email kantor',
               icon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 14),
-            AppTextField(
-              controller: _departemenController,
-              label: 'Departemen',
-              icon: Icons.apartment,
             ),
             const SizedBox(height: 14),
             AppTextField(
@@ -102,22 +86,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _submitRegister() {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final nama = _namaController.text.trim();
-    final departemen = _departemenController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || nama.isEmpty || departemen.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua field harus diisi')),
+        const SnackBar(content: Text('Email dan password harus diisi')),
       );
       return;
     }
 
     context.read<AuthBloc>().add(
-      AuthRegisterSubmitted(
-        email: email,
-        password: password,
-        // Jika perlu, tambahkan nama dan departemen ke event
-      ),
+      AuthRegisterSubmitted(email: email, password: password),
     );
   }
 }

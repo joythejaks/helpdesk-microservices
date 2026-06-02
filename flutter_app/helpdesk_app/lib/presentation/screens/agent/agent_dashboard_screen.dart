@@ -40,6 +40,7 @@ class AgentDashboardScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 18),
+                  // TODO: fetch SLA data from analytics endpoint
                   const ProgressLine(label: 'Network', value: .86),
                   const ProgressLine(label: 'Account', value: .72),
                   const ProgressLine(label: 'Hardware', value: .54),

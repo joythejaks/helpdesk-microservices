@@ -10,6 +10,16 @@ class TicketCard extends StatelessWidget {
   final Ticket ticket;
   final VoidCallback onTap;
 
+  String _subtitle() {
+    final parts = <String>[];
+    if (ticket.requester.isNotEmpty) parts.add(ticket.requester);
+    if (ticket.department.isNotEmpty) parts.add(ticket.department);
+    if (parts.isEmpty && ticket.userId != null) {
+      parts.add('User #${ticket.userId}');
+    }
+    return parts.join(' - ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -30,11 +40,13 @@ class TicketCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(ticket.title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(
-              '${ticket.requester} - ${ticket.department}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            if (_subtitle().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                _subtitle(),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),

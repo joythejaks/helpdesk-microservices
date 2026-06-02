@@ -8,21 +8,58 @@ import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 import 'package:helpdesk_app/presentation/widgets/status_filter.dart';
 import 'package:helpdesk_app/presentation/widgets/ticket_card.dart';
 
-class TicketListScreen extends StatelessWidget {
+class TicketListScreen extends StatefulWidget {
   const TicketListScreen({super.key, required this.onOpenTicket});
 
   final ValueChanged<Ticket> onOpenTicket;
 
   @override
+  State<TicketListScreen> createState() => _TicketListScreenState();
+}
+
+class _TicketListScreenState extends State<TicketListScreen> {
+  final _searchController = TextEditingController();
+  String _selectedFilter = 'All';
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Ticket> _applyFilters(List<Ticket> tickets) {
+    return tickets.where((t) {
+      final matchesFilter =
+          _selectedFilter == 'All' || t.status == _selectedFilter;
+      final matchesSearch =
+          _searchQuery.isEmpty ||
+          t.title.toLowerCase().contains(_searchQuery) ||
+          t.id.toLowerCase().contains(_searchQuery);
+      return matchesFilter && matchesSearch;
+    }).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<TicketBloc, TicketState>(
       builder: (context, state) {
-        final tickets = switch (state) {
+        final allTickets = switch (state) {
           TicketLoaded(:final tickets) => tickets,
           TicketCreating(:final tickets) => tickets,
           TicketFailure(:final tickets) => tickets,
           _ => <Ticket>[],
         };
+
+        final filtered = _applyFilters(allTickets);
 
         return RefreshIndicator(
           onRefresh: () async {
@@ -37,21 +74,29 @@ class TicketListScreen extends StatelessWidget {
                 trailing: Icons.tune,
               ),
               const SizedBox(height: 22),
-              const AppTextField(label: 'Cari tiket', icon: Icons.search),
+              AppTextField(
+                controller: _searchController,
+                label: 'Cari tiket',
+                icon: Icons.search,
+              ),
               const SizedBox(height: 16),
-              const StatusFilter(),
+              StatusFilter(
+                selected: _selectedFilter,
+                onSelected: (value) =>
+                    setState(() => _selectedFilter = value),
+              ),
               const SizedBox(height: 20),
               if (state is TicketLoading)
                 const Center(child: CircularProgressIndicator())
-              else if (state is TicketFailure && tickets.isEmpty)
+              else if (state is TicketFailure && allTickets.isEmpty)
                 Center(child: Text(state.message))
-              else if (tickets.isEmpty)
-                const Center(child: Text('Belum ada ticket.'))
+              else if (filtered.isEmpty)
+                const Center(child: Text('Tidak ada tiket yang cocok.'))
               else
-                ...tickets.map(
+                ...filtered.map(
                   (ticket) => TicketCard(
                     ticket: ticket,
-                    onTap: () => onOpenTicket(ticket),
+                    onTap: () => widget.onOpenTicket(ticket),
                   ),
                 ),
             ],
