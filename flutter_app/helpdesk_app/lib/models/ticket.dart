@@ -2,8 +2,8 @@ class Ticket {
   const Ticket({
     required this.id,
     required this.title,
-    this.requester = 'Requester',
-    this.department = 'Helpdesk',
+    this.requester = '',
+    this.department = '',
     required this.status,
     this.priority = 'Medium',
     required this.time,

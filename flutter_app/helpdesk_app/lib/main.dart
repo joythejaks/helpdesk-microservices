@@ -57,14 +57,7 @@ class HelpdeskApp extends StatelessWidget {
           initialRoute: '/splash',
           routes: {
             '/splash': (context) => const SplashScreen(),
-            '/login': (context) => BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, state) {
-                if (state is Authenticated) {
-                  return const DashboardShell();
-                }
-                return const LoginScreen();
-              },
-            ),
+            '/login': (context) => const LoginScreen(),
             '/dashboard': (context) => const DashboardShell(),
           },
         ),

@@ -8,6 +8,13 @@ import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 import 'package:helpdesk_app/presentation/widgets/metric_card.dart';
 import 'package:helpdesk_app/presentation/widgets/ticket_card.dart';
 
+String _greeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Selamat pagi';
+  if (hour < 17) return 'Selamat siang';
+  return 'Selamat malam';
+}
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
@@ -43,7 +50,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
             children: [
               HeaderBar(
-                title: 'Selamat pagi, Agent',
+                title: '${_greeting()}, Agent',
                 subtitle: '$openCount tiket aktif perlu dipantau hari ini',
                 trailing: Icons.notifications_none,
               ),

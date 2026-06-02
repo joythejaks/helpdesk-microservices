@@ -59,10 +59,6 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
             icon: Icons.subject,
           ),
           const SizedBox(height: 14),
-          const AppTextField(label: 'Kategori', icon: Icons.category_outlined),
-          const SizedBox(height: 14),
-          const AppTextField(label: 'Prioritas', icon: Icons.flag_outlined),
-          const SizedBox(height: 14),
           AppTextField(
             controller: _descriptionController,
             label: 'Deskripsi',
