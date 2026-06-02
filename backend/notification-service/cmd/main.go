@@ -20,20 +20,24 @@ func main() {
 	port := config.AppConfig.AppPort
 	rabbitURL := config.AppConfig.RabbitMQURL
 
-	// 🔥 start consumer (non-blocking)
+	// start consumer (non-blocking, auto-reconnect)
 	consumer.StartConsumer(rabbitURL)
 
-	// websocket
-	http.HandleFunc("/ws", ws.HandleConnections)
+	// custom mux — hindari register ke DefaultServeMux global
+	mux := http.NewServeMux()
 
-	go ws.HandleMessages()
+	mux.HandleFunc("/ws", ws.HandleConnections)
 
-	// ✅ health endpoint
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
 
+	go ws.HandleMessages()
+
 	logger.Log.Info("notification-service running on port " + port)
 
-	http.ListenAndServe(":"+port, nil)
+	if err := http.ListenAndServe(":"+port, mux); err != nil {
+		logger.Log.Fatal("server error: ", err)
+	}
 }

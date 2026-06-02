@@ -48,7 +48,11 @@ func TestRegister_PasswordIsHashed(t *testing.T) {
 
 	_ = uc.Register("hash@example.com", "plaintext", "user")
 
-	user := repo.users["hash@example.com"]
+	// akses lewat interface, bukan field langsung
+	user, err := repo.FindByEmail("hash@example.com")
+	if err != nil {
+		t.Fatalf("user not found: %v", err)
+	}
 	if user.Password == "plaintext" {
 		t.Error("password should be hashed, not stored in plaintext")
 	}
@@ -105,7 +109,11 @@ func TestRegister_RoleIsStored(t *testing.T) {
 
 	_ = uc.Register("admin@example.com", "pass", "admin")
 
-	user := repo.users["admin@example.com"]
+	// akses lewat interface, bukan field langsung
+	user, err := repo.FindByEmail("admin@example.com")
+	if err != nil {
+		t.Fatalf("user not found: %v", err)
+	}
 	if user.Role != "admin" {
 		t.Errorf("expected role admin, got %s", user.Role)
 	}

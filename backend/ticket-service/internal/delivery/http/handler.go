@@ -29,6 +29,9 @@ func NewTicketHandler(u *usecase.TicketUsecase, p *messaging.Publisher) *TicketH
 type CreateTicketRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description"`
+	Priority    string `json:"priority"`
+	Requester   string `json:"requester"`
+	Department  string `json:"department"`
 }
 
 func (h *TicketHandler) Create(c *gin.Context) {
@@ -59,6 +62,20 @@ func (h *TicketHandler) Create(c *gin.Context) {
 		Title:       req.Title,
 		Description: req.Description,
 		UserID:      userID,
+		Priority:    req.Priority,
+		Requester:   req.Requester,
+		Department:  req.Department,
+	}
+
+	// Set defaults if empty
+	if ticket.Priority == "" {
+		ticket.Priority = "Medium"
+	}
+	if ticket.Requester == "" {
+		ticket.Requester = "Requester"
+	}
+	if ticket.Department == "" {
+		ticket.Department = "Helpdesk"
 	}
 
 	err := h.usecase.Create(&ticket)
