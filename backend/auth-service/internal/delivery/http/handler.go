@@ -37,10 +37,16 @@ func NewAuthHandler(
 }
 
 // HealthCheck memberikan informasi status servis
+// @Summary Cek kesehatan servis
+// @Description Memberikan status kesehatan servis dan dependensi database
+// @Tags System
+// @Produce json
+// @Success 200 {object} response.Response
+// @Router /health [get]
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	dbStatus := "connected"
 	sqlDB, err := h.db.DB()
-	if err != nil || sqlDB.Ping() != nil {
+	if err != nil || sqlDB == nil || sqlDB.Ping() != nil {
 		dbStatus = "disconnected"
 	}
 
@@ -54,18 +60,31 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	})
 }
 
+type RegisterRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+	Role     string `json:"role"`
+}
+
 //
 // =======================
 // REGISTER
 // =======================
 //
 
+// Register handle pendaftaran user baru
+// @Summary Register user baru
+// @Description Membuat akun baru dengan role default 'user' jika tidak ditentukan
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Data registrasi"
+// @Success 200 {object} response.Response "registered"
+// @Failure 400 {object} response.Response "invalid input"
+// @Router /register [post]
+
 func (h *AuthHandler) Register(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required"`
-		Role     string `json:"role"`
-	}
+	var req RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, 400, "invalid input", "bad_request")
@@ -103,6 +122,17 @@ type LoginRequest struct {
 // =======================
 //
 
+// Login handle autentikasi user
+// @Summary Login user
+// @Description Melakukan login dan mengembalikan pasangan Access Token & Refresh Token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Kredensial login"
+// @Success 200 {object} response.Response{data=map[string]string} "Token pair"
+// @Failure 401 {object} response.Response "invalid credentials"
+// @Router /login [post]
+
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 
@@ -131,10 +161,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	response.Success(c, tokenResponse)
 }
 
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// Refresh handle rotasi token
+// @Summary Refresh token
+// @Description Menggunakan Refresh Token untuk mendapatkan Access Token baru (Token Rotation)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RefreshRequest true "Refresh token"
+// @Success 200 {object} response.Response{data=map[string]string} "New token pair"
+// @Failure 401 {object} response.Response "invalid refresh token"
+// @Router /refresh [post]
+
 func (h *AuthHandler) Refresh(c *gin.Context) {
-	var req struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
+	var req RefreshRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, 400, "invalid input", "bad_request")
@@ -218,6 +261,15 @@ func (h *AuthHandler) generateTokenPair(userID uint, role string) (map[string]st
 	}, nil
 }
 
+// Logout handle penghapusan sesi
+// @Summary Logout user
+// @Description Menghapus refresh token dari database berdasarkan User ID
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "logged out"
+// @Failure 401 {object} response.Response "unauthorized"
+// @Router /logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// 🔥 ambil dari gateway header (JWT)

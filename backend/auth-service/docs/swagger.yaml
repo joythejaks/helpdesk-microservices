@@ -1,0 +1,52 @@
+basePath: /
+definitions:
+  response.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: API dokumentasi untuk layanan autentikasi Helpdesk Microservices.
+  title: Helpdesk Auth Service API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Memberikan status kesehatan servis dan dependensi database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Cek kesehatan servis
+      tags:
+      - System
+  /logout:
+    post:
+      description: Menghapus refresh token dari database berdasarkan User ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: logged out
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Logout user
+      tags:
+      - Auth
+swagger: "2.0"

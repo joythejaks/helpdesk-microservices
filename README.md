@@ -30,10 +30,13 @@ The system is designed using a microservices pattern, communicating via REST and
 - Docker Compose
 - Flutter, BLoC, Flutter Secure Storage
 
-## 🚀 Getting Started (Backend)
+## 🚀 Deployment & Operations
+
+### Run Full Stack (Docker)
+
+Ensure you have Docker and Docker Compose installed, then run:
 
 ```bash
-cd backend
 docker compose up --build
 ```
 
@@ -90,7 +93,25 @@ Protected routes require:
 Authorization: Bearer <access_token>
 ```
 
-## Tests
+## 🛠️ Common Troubleshooting
+
+**1. Database Connection Timeout**
+If the services start before PostgreSQL is ready, they will retry 10 times with a 2-second delay. Ensure the `POSTGRES_USER` matches the `DB_USER` in your `.env`.
+
+**2. WebSocket Connection Failure**
+If running on a physical Android device, ensure the `WS_URL` points to your machine's local IP (e.g., `ws://192.168.1.5:8083/ws`) instead of `10.0.2.2`.
+
+**3. Authorization 403 Forbidden**
+Ensure the API Gateway is correctly forwarding the `X-User-Role` header. Check the Gateway logs to verify JWT claim extraction.
+
+## 🛡️ Production Hardening
+
+- [ ] **SSL/TLS**: Always wrap the API Gateway with Nginx or a Load Balancer (like Cloudflare) to enable HTTPS.
+- [ ] **Secrets**: Use a Secret Manager (Vault/AWS Secrets) instead of plain `.env` files in actual production.
+- [ ] **Rate Limiting**: Enable rate limiting at the Gateway level to prevent DDoS.
+- [ ] **Logs**: Forward JSON logs to a centralized collector (ELK or Grafana Loki).
+
+## 🧪 Testing
 
 Run Go tests:
 

@@ -16,10 +16,24 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	_ "auth-service/docs" // Ini akan terisi otomatis setelah menjalankan 'swag init'
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title Helpdesk Auth Service API
+// @version 1.0
+// @description API dokumentasi untuk layanan autentikasi Helpdesk Microservices.
+// @host localhost:8081
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 func main() {
-	godotenv.Load()
+	_ = godotenv.Load() // Abaikan error jika .env tidak ada di prod (menggunakan environment variables asli)
 
 	config.Load()
 
@@ -32,7 +46,10 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("failed to connect database:", err)
 	}
-	sqlDB, _ := db.DB()
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Log.Fatal("failed to get database instance:", err)
+	}
 
 	// 🔥 TAMBAH refresh token migration
 	db.AutoMigrate(&domain.User{}, &domain.RefreshToken{})
@@ -47,6 +64,9 @@ func main() {
 	handler := delivery.NewAuthHandler(usecase, refreshRepo, jwtSecret, db)
 
 	r := gin.Default()
+
+	// Swagger UI route
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 🔥 Optimasi: CORS Middleware untuk produksi
 	r.Use(func(c *gin.Context) {
