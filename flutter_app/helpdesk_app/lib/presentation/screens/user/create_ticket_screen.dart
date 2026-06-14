@@ -18,6 +18,7 @@ class CreateTicketScreen extends StatefulWidget {
 class _CreateTicketScreenState extends State<CreateTicketScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -44,59 +45,69 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
           ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
-        children: [
-          const HeaderBar(
-            title: 'Create Ticket',
-            subtitle: 'Laporkan kendala dengan konteks lengkap',
-            trailing: Icons.close,
-          ),
-          const SizedBox(height: 28),
-          AppTextField(
-            controller: _titleController,
-            label: 'Judul kendala',
-            icon: Icons.subject,
-          ),
-          const SizedBox(height: 14),
-          AppTextField(
-            controller: _descriptionController,
-            label: 'Deskripsi',
-            icon: Icons.notes,
-            maxLines: 5,
-          ),
-          const SizedBox(height: 18),
-          const SurfaceCard(
-            child: Row(
-              children: [
-                Icon(Icons.attach_file, color: HelpdeskTheme.primary),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Lampirkan screenshot atau dokumen pendukung',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
+          children: [
+            const HeaderBar(
+              title: 'Create Ticket',
+              subtitle: 'Laporkan kendala dengan konteks lengkap',
+              trailing: Icons.close,
             ),
-          ),
-          const SizedBox(height: 22),
-          BlocBuilder<TicketBloc, TicketState>(
-            builder: (context, state) {
-              final isCreating = state is TicketCreating;
-              return GradientButton(
-                label: isCreating ? 'Mengirim...' : 'Kirim Ticket',
-                icon: Icons.send_outlined,
-                onPressed: isCreating ? () {} : _submitTicket,
-              );
-            },
-          ),
-        ],
+            const SizedBox(height: 28),
+            AppTextField(
+              controller: _titleController,
+              label: 'Judul kendala',
+              icon: Icons.subject,
+            ),
+            const SizedBox(height: 14),
+            AppTextField(
+              controller: _descriptionController,
+              label: 'Deskripsi',
+              icon: Icons.notes,
+              maxLines: 5,
+            ),
+            const SizedBox(height: 18),
+            const SurfaceCard(
+              child: Row(
+                children: [
+                  Icon(Icons.attach_file, color: HelpdeskTheme.primary),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Lampirkan screenshot atau dokumen pendukung',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            BlocBuilder<TicketBloc, TicketState>(
+              builder: (context, state) {
+                final isCreating = state is TicketCreating;
+                return GradientButton(
+                  label: isCreating ? 'Mengirim...' : 'Kirim Ticket',
+                  icon: Icons.send_outlined,
+                  onPressed: isCreating ? () {} : _submitTicket,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _submitTicket() {
+    if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Judul dan deskripsi harus diisi')),
+      );
+      return;
+    }
+
     context.read<TicketBloc>().add(
       TicketCreateSubmitted(
         title: _titleController.text.trim(),

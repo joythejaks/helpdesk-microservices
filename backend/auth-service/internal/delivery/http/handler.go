@@ -7,6 +7,7 @@ import (
 	"auth-service/pkg/response"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,10 +50,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	if req.Role == "" {
-		req.Role = "user"
-	}
-
 	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
 		response.Error(c, 500, err.Error(), "internal_error")
@@ -87,61 +84,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 🔥 ACCESS TOKEN
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(2 * time.Hour).Unix(),
-	})
-
-	accessTokenString, err := accessToken.SignedString(h.jwtSecret)
+	tokenResponse, err := h.generateTokenPair(user.ID, user.Role)
 	if err != nil {
-		logger.Log.WithError(err).Error("failed to sign access token")
-		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
-		return
-	}
-
-	// 🔥 REFRESH TOKEN
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
-	})
-
-	refreshTokenString, err := refreshToken.SignedString(h.jwtSecret)
-	if err != nil {
-		logger.Log.WithError(err).Error("failed to sign refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
-		return
-	}
-
-	// 🔥 SIMPAN (ROTATE)
-	if err := h.refreshRepo.DeleteByUser(user.ID); err != nil {
-		logger.Log.WithError(err).Error("failed to rotate refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
-		return
-	}
-	if err := h.refreshRepo.Save(&domain.RefreshToken{
-		UserID: user.ID,
-		Token:  refreshTokenString,
-	}); err != nil {
-		logger.Log.WithError(err).Error("failed to save refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
+		response.Error(c, http.StatusInternalServerError, "failed to process session", "internal_error")
 		return
 	}
 
 	logger.Log.WithField("user_id", user.ID).Info("login")
-
-	response.Success(c, gin.H{
-		"access_token":  accessTokenString,
-		"refresh_token": refreshTokenString,
-	})
+	response.Success(c, tokenResponse)
 }
-
-//
-// =======================
-// REFRESH TOKEN (ROTATION)
-// =======================
-//
 
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req struct {
@@ -177,53 +128,69 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	// 🔥 type safe conversion
 	userID := uint(claims["user_id"].(float64))
 
-	// 🔥 new access token
-	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(2 * time.Hour).Unix(),
-	})
+	// Ambil role jika diperlukan, atau set default
+	role, _ := claims["role"].(string)
 
-	accessString, err := newAccess.SignedString(h.jwtSecret)
+	tokenResponse, err := h.generateTokenPair(userID, role)
 	if err != nil {
-		logger.Log.WithError(err).Error("failed to sign access token")
-		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
+		response.Error(c, http.StatusInternalServerError, "failed to refresh session", "internal_error")
 		return
 	}
 
-	// 🔥 new refresh token (ROTATION)
-	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	response.Success(c, tokenResponse)
+}
+
+// Helper untuk mengurangi duplikasi pembuatan token
+func (h *AuthHandler) generateTokenPair(userID uint, role string) (map[string]string, error) {
+	// Access Token
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"role":    role,
+		"exp":     time.Now().Add(2 * time.Hour).Unix(),
+	})
+	accessString, err := accessToken.SignedString(h.jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refresh Token
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 	})
-
-	refreshString, err := newRefresh.SignedString(h.jwtSecret)
+	refreshString, err := refreshToken.SignedString(h.jwtSecret)
 	if err != nil {
-		logger.Log.WithError(err).Error("failed to sign refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed generate token", "internal_error")
-		return
+		return nil, err
 	}
 
-	// 🔥 replace old token
+	// Rotasi di DB
 	if err := h.refreshRepo.DeleteByUser(userID); err != nil {
-		logger.Log.WithError(err).Error("failed to rotate refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
-		return
+		return nil, err
 	}
 	if err := h.refreshRepo.Save(&domain.RefreshToken{
 		UserID: userID,
 		Token:  refreshString,
 	}); err != nil {
-		logger.Log.WithError(err).Error("failed to save refresh token")
-		response.Error(c, http.StatusInternalServerError, "failed save session", "internal_error")
-		return
+		return nil, err
 	}
 
-	response.Success(c, gin.H{
+	return map[string]string{
 		"access_token":  accessString,
 		"refresh_token": refreshString,
-	})
+	}, nil
 }
 
+//
+// =======================
+// REFRESH TOKEN (ROTATION)
+// =======================
+//
+
+//
+// =======================
+// LOGOUT (SECURE)
+// =======================
+//
 //
 // =======================
 // LOGOUT (SECURE)
@@ -235,15 +202,18 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// 🔥 ambil dari gateway header (JWT)
 	userIDStr := c.GetHeader("X-User-ID")
 
-	var userID uint
-	fmt.Sscanf(userIDStr, "%d", &userID)
-
-	if userID == 0 {
+	if userIDStr == "" {
 		response.Error(c, 401, "unauthorized", "unauthorized")
 		return
 	}
 
-	if err := h.refreshRepo.DeleteByUser(userID); err != nil {
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		response.Error(c, 400, "invalid user id format", "bad_request")
+		return
+	}
+
+	if err := h.refreshRepo.DeleteByUser(uint(userID)); err != nil {
 		logger.Log.WithError(err).Error("failed to logout")
 		response.Error(c, http.StatusInternalServerError, "failed logout", "internal_error")
 		return

@@ -35,15 +35,9 @@ class HomeScreen extends StatelessWidget {
           TicketFailure(:final tickets) => tickets,
           _ => <Ticket>[],
         };
-        final openCount = tickets
-            .where((ticket) => ticket.status != 'Resolved')
-            .length;
-        final resolvedCount = tickets
-            .where((ticket) => ticket.status == 'Resolved')
-            .length;
-        final urgentCount = tickets
-            .where((ticket) => ticket.priority == 'High')
-            .length;
+
+        // Pindahkan kalkulasi ini ke dalam helper atau getter agar build lebih bersih
+        final metrics = _calculateMetrics(tickets);
 
         return RefreshIndicator(
           onRefresh: () async {
@@ -54,7 +48,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               HeaderBar(
                 title: '${_greeting()}, Agent',
-                subtitle: '$openCount tiket aktif perlu dipantau hari ini',
+                subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
                 trailing: Icons.notifications_none,
               ),
               const SizedBox(height: 26),
@@ -62,15 +56,15 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: MetricCard(
-                      value: '$openCount',
+                      value: '${metrics.open}',
                       label: 'Aktif',
                       icon: Icons.confirmation_number_outlined,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: MetricCard(
-                      value: '$urgentCount',
+                      value: '${metrics.urgent}',
                       label: 'Urgent',
                       icon: Icons.priority_high,
                     ),
@@ -91,7 +85,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: MetricCard(
-                      value: '$resolvedCount',
+                      value: '${metrics.resolved}',
                       label: 'Selesai',
                       icon: Icons.task_alt,
                     ),
@@ -128,6 +122,19 @@ class HomeScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  ({int open, int resolved, int urgent}) _calculateMetrics(List<Ticket> tickets) {
+    int open = 0;
+    int resolved = 0;
+    int urgent = 0;
+
+    for (var t in tickets) {
+      if (t.status == 'Resolved') resolved++; else open++;
+      if (t.priority == 'High') urgent++;
+    }
+
+    return (open: open, resolved: resolved, urgent: urgent);
   }
 }
 

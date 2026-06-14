@@ -37,13 +37,14 @@ class _TicketListScreenState extends State<TicketListScreen> {
   }
 
   List<Ticket> _applyFilters(List<Ticket> tickets) {
+    final query = _searchQuery.toLowerCase();
     return tickets.where((t) {
       final matchesFilter =
           _selectedFilter == 'All' || t.status == _selectedFilter;
       final matchesSearch =
-          _searchQuery.isEmpty ||
-          t.title.toLowerCase().contains(_searchQuery) ||
-          t.id.toLowerCase().contains(_searchQuery);
+          query.isEmpty ||
+          t.title.toLowerCase().contains(query) ||
+          t.id.toLowerCase().contains(query);
       return matchesFilter && matchesSearch;
     }).toList();
   }

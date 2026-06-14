@@ -2,15 +2,25 @@
 
 Helpdesk Microservices is a portfolio-grade ticketing system with Go microservices, an API gateway, RabbitMQ notifications, PostgreSQL persistence, and a Flutter client built with BLoC.
 
-## Architecture
+## 🏗️ Architecture Overview
 
-- `api-gateway`: public entrypoint, JWT validation, and reverse proxy to internal services.
-- `auth-service`: user registration, login, refresh token rotation, logout, and JWT issuance.
-- `ticket-service`: ticket creation and ticket listing, with RabbitMQ event publishing.
-- `notification-service`: RabbitMQ consumer and WebSocket notification delivery.
-- `flutter_app/helpdesk_app`: Flutter mobile app using BLoC, repositories, token storage, and the gateway API.
+The system is designed using a microservices pattern, communicating via REST and asynchronous events:
 
-## Tech Stack
+- **API Gateway**: Public entrypoint, JWT validation, and reverse proxy.
+- **Auth Service**: Identity management, JWT issuance, and token rotation.
+- **Ticket Service**: Ticket lifecycle management with RabbitMQ event publishing.
+- **Notification Service**: Real-time updates via WebSockets and RabbitMQ consumption.
+- **Flutter App**: Cross-platform mobile client with Clean Architecture and BLoC pattern.
+
+## ✨ Key Features
+
+- **Secure Auth**: JWT-based authentication with Refresh Token rotation (Security best practice).
+- **Real-time Notifications**: Instant updates when ticket status changes.
+- **Event-Driven**: Ticket creation triggers background notifications via RabbitMQ.
+- **Clean UI**: Modern Flutter interface with dark/light theme support.
+- **Scalable**: Services are containerized and ready for horizontal scaling.
+
+## 🛠️ Tech Stack
 
 - Go, Gin, GORM
 - PostgreSQL
@@ -18,7 +28,7 @@ Helpdesk Microservices is a portfolio-grade ticketing system with Go microservic
 - Docker Compose
 - Flutter, BLoC, Shared Preferences
 
-## Run Backend
+## 🚀 Getting Started (Backend)
 
 ```bash
 cd backend
