@@ -27,6 +27,13 @@ func NewPostgresDB() (*gorm.DB, error) {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
 			log.Println("✅ Connected to database")
+
+			// 🔥 Optimize Connection Pool for Production
+			sqlDB, _ := db.DB()
+			sqlDB.SetMaxOpenConns(100)          // Maksimal koneksi terbuka
+			sqlDB.SetMaxIdleConns(10)           // Maksimal koneksi idle
+			sqlDB.SetConnMaxLifetime(time.Hour) // Durasi maksimal koneksi bisa digunakan
+
 			return db, nil
 		}
 

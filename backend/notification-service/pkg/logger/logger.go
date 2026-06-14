@@ -16,5 +16,13 @@ func Init(service string) {
 	Log.SetOutput(os.Stdout)
 	Log.SetLevel(logrus.InfoLevel)
 
-	Log.WithField("service", service).Info("logger initialized")
+	Log.WithFields(logrus.Fields{
+		"service": service,
+		"version": "1.0.0",
+	}).Info("logger initialized")
+}
+
+// WithTraceId menambahkan trace_id ke dalam log untuk tracking antar servis
+func WithTraceId(traceId string) *logrus.Entry {
+	return Log.WithField("trace_id", traceId)
 }

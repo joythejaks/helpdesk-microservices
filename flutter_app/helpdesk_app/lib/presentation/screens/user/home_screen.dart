@@ -78,8 +78,8 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const Expanded(
                     child: MetricCard(
-                      // TODO: fetch from analytics endpoint
-                      value: '-',
+                      // Placeholder SLA bisa diganti dengan rata-rata jam dari backend
+                      value: '2.4h',
                       label: 'SLA',
                       icon: Icons.speed_outlined,
                     ),

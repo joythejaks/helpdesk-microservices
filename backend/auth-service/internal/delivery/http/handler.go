@@ -12,33 +12,45 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 type AuthHandler struct {
 	usecase     *usecase.AuthUsecase
 	refreshRepo domain.RefreshTokenRepository
 	jwtSecret   []byte
+	db          *gorm.DB
 }
 
 func NewAuthHandler(
 	u *usecase.AuthUsecase,
 	refreshRepo domain.RefreshTokenRepository,
 	jwtSecret []byte,
+	db *gorm.DB,
 ) *AuthHandler {
 	return &AuthHandler{
 		usecase:     u,
 		refreshRepo: refreshRepo,
 		jwtSecret:   jwtSecret,
+		db:          db,
 	}
 }
 
 // HealthCheck memberikan informasi status servis
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
-	// Di sini bisa ditambahkan cek koneksi database atau RabbitMQ
+	dbStatus := "connected"
+	sqlDB, err := h.db.DB()
+	if err != nil || sqlDB.Ping() != nil {
+		dbStatus = "disconnected"
+	}
+
 	response.Success(c, gin.H{
 		"status":    "up",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"service":   "auth-service",
+		"dependencies": gin.H{
+			"database": dbStatus,
+		},
 	})
 }
 
@@ -67,10 +79,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
-		logger.Log.WithFields(logger.Fields{
+		// Gunakan WithTraceId agar konsisten dengan endpoint lain
+		logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
 			"email": req.Email,
 			"error": err.Error(),
 		}).Error("registration failed")
+
 		response.Error(c, 500, err.Error(), "internal_error")
 		return
 	}
@@ -109,13 +123,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	logger.Log.WithField("user_id", user.ID).Info("login")
+	// Gunakan logger.WithTraceId yang sudah kita buat di pkg/logger
+	logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
+		"user_id": user.ID,
+	}).Info("user logged in")
+
 	response.Success(c, tokenResponse)
 }
 
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req struct {
-		RefreshToken string `json:"refresh_token"`
+		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -210,14 +228,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	userID, err := strconv.ParseUint(userIDStr, 10, 0) // Gunakan 0 agar otomatis mendeteksi ukuran uint platform
 	if err != nil {
 		response.Error(c, 400, "invalid user id format", "bad_request")
 		return
 	}
 
 	if err := h.refreshRepo.DeleteByUser(uint(userID)); err != nil {
-		logger.Log.WithError(err).Error("failed to logout")
+		logger.WithTraceId(c.GetString("TraceID")).WithError(err).Error("failed to logout")
 		response.Error(c, http.StatusInternalServerError, "failed logout", "internal_error")
 		return
 	}

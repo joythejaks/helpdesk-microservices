@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:helpdesk_app/pkg/logger.dart'; // Asumsi logger tersedia
 
 class WebSocketService {
   WebSocketChannel? _channel;

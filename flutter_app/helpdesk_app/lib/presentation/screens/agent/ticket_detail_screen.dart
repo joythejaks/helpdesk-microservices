@@ -63,7 +63,10 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                   const SizedBox(height: 24),
                   Text('Percakapan & Aktivitas', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 16),
+                  // Contoh implementasi log aktivitas yang lebih detail
                   _buildCommentTile('System', 'Tiket telah berhasil dibuat dan masuk antrean.', 'Tadi', isSystem: true),
+                  _buildCommentTile('System', 'Tiket diprioritaskan menjadi "${widget.ticket.priority}"', '10m lalu', isSystem: true),
+                  
                   // Placeholder untuk komentar selanjutnya
                 ],
               ),

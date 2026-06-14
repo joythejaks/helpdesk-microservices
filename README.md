@@ -28,7 +28,7 @@ The system is designed using a microservices pattern, communicating via REST and
 - PostgreSQL
 - RabbitMQ
 - Docker Compose
-- Flutter, BLoC, Shared Preferences
+- Flutter, BLoC, Flutter Secure Storage
 
 ## 🚀 Getting Started (Backend)
 
