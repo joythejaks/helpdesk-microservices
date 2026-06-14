@@ -50,6 +50,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// Set default role jika tidak disertakan
+	if req.Role == "" {
+		req.Role = "user"
+	}
+
 	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
 		response.Error(c, 500, err.Error(), "internal_error")
@@ -232,5 +237,11 @@ func RegisterRoutes(r *gin.Engine, h *AuthHandler) {
 	r.POST("/register", h.Register)
 	r.POST("/login", h.Login)
 	r.POST("/refresh", h.Refresh)
-	r.POST("/logout", h.Logout)
+
+	// Contoh rute yang diproteksi (Fase 1 RBAC Enforcement)
+	// Logout memerlukan user ID dari header yang diisi oleh Gateway
+	protected := r.Group("/")
+	{
+		protected.POST("/logout", h.Logout)
+	}
 }

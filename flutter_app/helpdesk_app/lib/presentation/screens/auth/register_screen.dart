@@ -61,6 +61,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'Email kantor',
                 icon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
+                  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                  if (!emailRegex.hasMatch(value)) return 'Format email tidak valid';
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               AppTextField(
@@ -68,6 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'Password',
                 icon: Icons.lock_outline,
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
+                  if (value.length < 6) return 'Password minimal 6 karakter';
+                  return null;
+                },
               ),
               const SizedBox(height: 22),
               BlocBuilder<AuthBloc, AuthState>(
@@ -87,27 +98,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
   void _submitRegister() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan password harus diisi')),
+    if (_formKey.currentState!.validate()) {
+      context.read<AuthBloc>().add(
+        AuthRegisterSubmitted(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        ),
       );
-      return;
     }
-
-    // Validate email format
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Format email tidak valid')),
-      );
-      return;
-    }
-
-    context.read<AuthBloc>().add(
-      AuthRegisterSubmitted(email: email, password: password),
-    );
   }
 }

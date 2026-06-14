@@ -11,6 +11,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.maxLines = 1,
+    this.validator,
   });
 
   final String label;
@@ -19,10 +20,11 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final int maxLines;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
@@ -31,6 +33,7 @@ class AppTextField extends StatelessWidget {
         labelText: label,
         prefixIcon: Icon(icon, color: HelpdeskTheme.primary),
       ),
+      validator: validator,
     );
   }
 }

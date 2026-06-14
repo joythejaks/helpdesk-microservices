@@ -60,6 +60,10 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               controller: _titleController,
               label: 'Judul kendala',
               icon: Icons.subject,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Judul tidak boleh kosong';
+                return null;
+              },
             ),
             const SizedBox(height: 14),
             AppTextField(
@@ -67,6 +71,10 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               label: 'Deskripsi',
               icon: Icons.notes,
               maxLines: 5,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Deskripsi tidak boleh kosong';
+                return null;
+              },
             ),
             const SizedBox(height: 18),
             const SurfaceCard(
@@ -101,10 +109,7 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
   }
 
   void _submitTicket() {
-    if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Judul dan deskripsi harus diisi')),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 

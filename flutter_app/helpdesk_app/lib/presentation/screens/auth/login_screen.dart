@@ -7,6 +7,9 @@ import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/app_mark.dart';
 import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
 import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
+import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -32,6 +35,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
+        if (state is Authenticated) {
+          // Navigasi Berdasarkan Role (Fase 1)
+          final role = state.user.role.toLowerCase();
+          
+          Widget nextScreen;
+          if (role == 'agent') {
+            nextScreen = const AgentDashboardScreen();
+          } else {
+            // Contoh untuk user biasa, arahkan ke HomeScreen
+            nextScreen = HomeScreen(
+              onOpenTicket: (t) {}, // Implementasi nanti di Fase 2
+              onCreate: () {},
+            );
+          }
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => nextScreen),
+          );
+        }
+
         if (state is AuthFailure) {
           ScaffoldMessenger.of(
             context,
@@ -61,6 +84,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Email',
                 icon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
+                  if (!value.contains('@')) return 'Format email tidak valid';
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               AppTextField(
@@ -68,6 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Password',
                 icon: Icons.lock_outline,
                 obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
+                  if (value.length < 6) return 'Password minimal 6 karakter';
+                  return null;
+                },
               ),
               const SizedBox(height: 20),
               BlocBuilder<AuthBloc, AuthState>(
@@ -97,10 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _submitLogin() {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan password tidak boleh kosong')),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
