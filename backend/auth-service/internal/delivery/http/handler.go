@@ -32,6 +32,16 @@ func NewAuthHandler(
 	}
 }
 
+// HealthCheck memberikan informasi status servis
+func (h *AuthHandler) HealthCheck(c *gin.Context) {
+	// Di sini bisa ditambahkan cek koneksi database atau RabbitMQ
+	response.Success(c, gin.H{
+		"status":    "up",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"service":   "auth-service",
+	})
+}
+
 //
 // =======================
 // REGISTER
@@ -57,6 +67,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	err := h.usecase.Register(req.Email, req.Password, req.Role)
 	if err != nil {
+		logger.Log.WithFields(logger.Fields{
+			"email": req.Email,
+			"error": err.Error(),
+		}).Error("registration failed")
 		response.Error(c, 500, err.Error(), "internal_error")
 		return
 	}
@@ -161,6 +175,7 @@ func (h *AuthHandler) generateTokenPair(userID uint, role string) (map[string]st
 	// Refresh Token
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
+		"role":    role,
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 	})
 	refreshString, err := refreshToken.SignedString(h.jwtSecret)
@@ -184,23 +199,6 @@ func (h *AuthHandler) generateTokenPair(userID uint, role string) (map[string]st
 		"refresh_token": refreshString,
 	}, nil
 }
-
-//
-// =======================
-// REFRESH TOKEN (ROTATION)
-// =======================
-//
-
-//
-// =======================
-// LOGOUT (SECURE)
-// =======================
-//
-//
-// =======================
-// LOGOUT (SECURE)
-// =======================
-//
 
 func (h *AuthHandler) Logout(c *gin.Context) {
 
@@ -234,6 +232,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 //
 
 func RegisterRoutes(r *gin.Engine, h *AuthHandler) {
+	// Public Health Check
+	r.GET("/health", h.HealthCheck)
+
 	r.POST("/register", h.Register)
 	r.POST("/login", h.Login)
 	r.POST("/refresh", h.Refresh)

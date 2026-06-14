@@ -17,6 +17,8 @@ The system is designed using a microservices pattern, communicating via REST and
 - **Secure Auth**: JWT-based authentication with Refresh Token rotation (Security best practice).
 - **Real-time Notifications**: Instant updates when ticket status changes.
 - **Event-Driven**: Ticket creation triggers background notifications via RabbitMQ.
+- **Observability**: Structured JSON logging and `/health` endpoints for all services.
+- **Resilience**: WebSocket with exponential backoff and graceful shutdown support.
 - **Clean UI**: Modern Flutter interface with dark/light theme support.
 - **Scalable**: Services are containerized and ready for horizontal scaling.
 

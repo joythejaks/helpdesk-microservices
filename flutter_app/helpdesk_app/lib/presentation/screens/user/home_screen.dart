@@ -49,7 +49,7 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
             children: [
               HeaderBar(
-                title: '${_greeting()}, Agent',
+                title: '${_greeting()}, User',
                 subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
                 trailing: Icons.notifications_none,
               ),
