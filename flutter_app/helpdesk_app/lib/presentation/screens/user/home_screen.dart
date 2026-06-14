@@ -9,10 +9,12 @@ import 'package:helpdesk_app/presentation/widgets/metric_card.dart';
 import 'package:helpdesk_app/presentation/widgets/ticket_card.dart';
 
 String _greeting() {
-  final hour = DateTime.now().hour;
-  if (hour < 12) return 'Selamat pagi';
-  if (hour < 17) return 'Selamat siang';
-  return 'Selamat malam';
+  final now = DateTime.now();
+  final hour = now.hour;
+  if (hour < 11) return 'Selamat Pagi';
+  if (hour < 15) return 'Selamat Siang';
+  if (hour < 19) return 'Selamat Sore';
+  return 'Selamat Malam';
 }
 
 class HomeScreen extends StatelessWidget {

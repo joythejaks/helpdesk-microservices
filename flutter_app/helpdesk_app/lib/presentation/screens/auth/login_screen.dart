@@ -10,6 +10,8 @@ import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
 import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
+import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,12 +43,20 @@ class _LoginScreenState extends State<LoginScreen> {
           
           Widget nextScreen;
           if (role == 'agent') {
-            nextScreen = const AgentDashboardScreen();
+            // Agent melihat Dashboard atau List
+            nextScreen = TicketListScreen(
+              onOpenTicket: (t) => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: t)),
+              ),
+            );
           } else {
-            // Contoh untuk user biasa, arahkan ke HomeScreen
             nextScreen = HomeScreen(
-              onOpenTicket: (t) {}, // Implementasi nanti di Fase 2
-              onCreate: () {},
+              onOpenTicket: (t) => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: t)),
+              ),
+              onCreate: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CreateTicketScreen()),
+              ),
             );
           }
 
