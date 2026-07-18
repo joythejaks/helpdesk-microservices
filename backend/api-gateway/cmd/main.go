@@ -96,6 +96,14 @@ func main() {
 		authMiddleware(secret),
 		proxyTrim("/auth", authURL),
 	)
+	r.GET("/auth/admin/agents",
+		authMiddleware(secret),
+		proxyTrim("/auth", authURL),
+	)
+	r.GET("/auth/me",
+		authMiddleware(secret),
+		proxyTrim("/auth", authURL),
+	)
 
 	// =======================
 	// REPORTS (ADMIN, PROTECTED)
