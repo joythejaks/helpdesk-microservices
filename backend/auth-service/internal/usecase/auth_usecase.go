@@ -3,7 +3,10 @@ package usecase
 import (
 	"auth-service/internal/domain"
 	"auth-service/pkg/bcrypt"
+	"errors"
 )
+
+var ErrEmailTaken = errors.New("email already registered")
 
 type AuthUsecase struct {
 	repo domain.UserRepository
@@ -15,6 +18,10 @@ func NewAuthUsecase(r domain.UserRepository) *AuthUsecase {
 
 // REGISTER
 func (u *AuthUsecase) Register(email, password, role string) error {
+	if existing, err := u.repo.FindByEmail(email); err == nil && existing != nil {
+		return ErrEmailTaken
+	}
+
 	hashed, err := bcrypt.Hash(password)
 	if err != nil {
 		return err

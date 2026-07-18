@@ -58,8 +58,9 @@ services:
     restart: unless-stopped
     env_file:
       - ./auth-service/.env
-    ports:
-      - "8081:8081"
+    # Internal only — reachable via api-gateway or the docker network by
+    # service name, not published to the host. Add back a "ports:" mapping
+    # temporarily if you need to hit it directly while debugging.
     depends_on:
       auth-db:
         condition: service_healthy

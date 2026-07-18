@@ -65,25 +65,21 @@ func main() {
 
 	r := gin.Default()
 
-	// Swagger UI route
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI hanya di-mount kalau eksplisit diaktifkan (dev only) — jangan
+	// expose skema API ke publik secara default.
+	if config.AppConfig.EnableSwagger {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
-	// 🔥 Optimasi: CORS Middleware untuk produksi
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Trace-ID")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	// CORS ditangani di API Gateway (satu-satunya entry point publik).
+	// auth-service tidak lagi melayani browser secara langsung, jadi tidak
+	// perlu header CORS-nya sendiri di sini.
 
 	// 🔥 Optimasi: Trace Middleware
 	r.Use(delivery.TraceMiddleware())
 
-	delivery.RegisterRoutes(r, handler)
+	authLimiter := delivery.NewRateLimiter(config.AppConfig.AuthRateLimitRPS, config.AppConfig.AuthRateLimitBurst)
+	delivery.RegisterRoutes(r, handler, config.AppConfig.InternalSecret, authLimiter)
 
 	// 🔥 Implement Graceful Shutdown
 	srv := &http.Server{

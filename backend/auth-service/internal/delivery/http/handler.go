@@ -5,6 +5,8 @@ import (
 	"auth-service/internal/usecase"
 	"auth-service/pkg/logger"
 	"auth-service/pkg/response"
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -45,9 +47,16 @@ func NewAuthHandler(
 // @Router /health [get]
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	dbStatus := "connected"
-	sqlDB, err := h.db.DB()
-	if err != nil || sqlDB == nil || sqlDB.Ping() != nil {
+	if h.db == nil {
 		dbStatus = "disconnected"
+	} else if sqlDB, err := h.db.DB(); err != nil || sqlDB == nil {
+		dbStatus = "disconnected"
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if sqlDB.PingContext(ctx) != nil {
+			dbStatus = "disconnected"
+		}
 	}
 
 	response.Success(c, gin.H{
@@ -62,8 +71,7 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-	Role     string `json:"role"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
 }
 
 //
@@ -82,7 +90,6 @@ type RegisterRequest struct {
 // @Success 200 {object} response.Response "registered"
 // @Failure 400 {object} response.Response "invalid input"
 // @Router /register [post]
-
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 
@@ -91,20 +98,23 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Set default role jika tidak disertakan
-	if req.Role == "" {
-		req.Role = "user"
-	}
-
-	err := h.usecase.Register(req.Email, req.Password, req.Role)
+	// Role selalu "user" untuk registrasi publik — jangan pernah percaya role
+	// dari client, itu jalan pintas privilege escalation.
+	err := h.usecase.Register(req.Email, req.Password, "user")
 	if err != nil {
-		// Gunakan WithTraceId agar konsisten dengan endpoint lain
+		if errors.Is(err, usecase.ErrEmailTaken) {
+			response.Error(c, http.StatusConflict, "email already registered", "conflict")
+			return
+		}
+
+		// Gunakan WithTraceId agar konsisten dengan endpoint lain.
+		// Detail error internal dicatat di log saja, tidak dikirim ke client.
 		logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
 			"email": req.Email,
 			"error": err.Error(),
 		}).Error("registration failed")
 
-		response.Error(c, 500, err.Error(), "internal_error")
+		response.Error(c, http.StatusInternalServerError, "failed to register", "internal_error")
 		return
 	}
 
@@ -113,7 +123,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password" binding:"required,max=72"`
 }
 
 //
@@ -129,10 +139,9 @@ type LoginRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body LoginRequest true "Kredensial login"
-// @Success 200 {object} response.Response{data=map[string]string} "Token pair"
+// @Success 200 {object} response.Response "Token pair"
 // @Failure 401 {object} response.Response "invalid credentials"
 // @Router /login [post]
-
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 
@@ -172,10 +181,9 @@ type RefreshRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body RefreshRequest true "Refresh token"
-// @Success 200 {object} response.Response{data=map[string]string} "New token pair"
+// @Success 200 {object} response.Response "New token pair"
 // @Failure 401 {object} response.Response "invalid refresh token"
 // @Router /refresh [post]
-
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshRequest
 
@@ -203,10 +211,19 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		response.Error(c, 401, "invalid refresh token", "unauthorized")
+		return
+	}
 
 	// 🔥 type safe conversion
-	userID := uint(claims["user_id"].(float64))
+	userIDClaim, ok := claims["user_id"].(float64)
+	if !ok {
+		response.Error(c, 401, "invalid refresh token", "unauthorized")
+		return
+	}
+	userID := uint(userIDClaim)
 
 	// Ambil role jika diperlukan, atau set default
 	role, _ := claims["role"].(string)
@@ -295,24 +312,84 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	response.Success(c, "logged out")
 }
 
+type CreateStaffRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
+	Role     string `json:"role" binding:"required"`
+}
+
+// CreateStaff lets an admin provision an agent or admin account. There is
+// no public signup path for these roles — Register always forces "user".
+func (h *AuthHandler) CreateStaff(c *gin.Context) {
+	var req CreateStaffRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, 400, "invalid input", "bad_request")
+		return
+	}
+
+	if req.Role != "agent" && req.Role != "admin" {
+		response.Error(c, 400, "role must be agent or admin", "bad_request")
+		return
+	}
+
+	err := h.usecase.Register(req.Email, req.Password, req.Role)
+	if err != nil {
+		if errors.Is(err, usecase.ErrEmailTaken) {
+			response.Error(c, http.StatusConflict, "email already registered", "conflict")
+			return
+		}
+
+		logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
+			"email": req.Email,
+			"role":  req.Role,
+			"error": err.Error(),
+		}).Error("staff creation failed")
+
+		response.Error(c, http.StatusInternalServerError, "failed to create staff account", "internal_error")
+		return
+	}
+
+	logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
+		"email": req.Email,
+		"role":  req.Role,
+	}).Info("staff account created")
+
+	response.Success(c, "staff account created")
+}
+
 //
 // =======================
 // ROUTES
 // =======================
 //
 
-func RegisterRoutes(r *gin.Engine, h *AuthHandler) {
+func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLimiter *RateLimiter) {
 	// Public Health Check
 	r.GET("/health", h.HealthCheck)
 
-	r.POST("/register", h.Register)
-	r.POST("/login", h.Login)
-	r.POST("/refresh", h.Refresh)
-
-	// Contoh rute yang diproteksi (Fase 1 RBAC Enforcement)
-	// Logout memerlukan user ID dari header yang diisi oleh Gateway
-	protected := r.Group("/")
+	// Semua rute bisnis hanya boleh diakses lewat API Gateway (dibuktikan
+	// dengan X-Internal-Secret) — mencegah bypass langsung ke service ini,
+	// yang penting khususnya untuk /logout yang percaya header X-User-ID.
+	internalOnly := r.Group("/")
+	internalOnly.Use(InternalOnlyMiddleware(internalSecret))
 	{
-		protected.POST("/logout", h.Logout)
+		authRoutes := internalOnly.Group("/")
+		authRoutes.Use(RateLimitMiddleware(authLimiter))
+		{
+			authRoutes.POST("/register", h.Register)
+			authRoutes.POST("/login", h.Login)
+			authRoutes.POST("/refresh", h.Refresh)
+		}
+
+		// Logout memerlukan user ID dari header yang diisi oleh Gateway
+		internalOnly.POST("/logout", h.Logout)
+
+		// Admin-only staff provisioning
+		admin := internalOnly.Group("/admin")
+		admin.Use(RequireRole("admin"))
+		{
+			admin.POST("/staff", h.CreateStaff)
+		}
 	}
 }

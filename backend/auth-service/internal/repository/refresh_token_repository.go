@@ -2,9 +2,19 @@ package repository
 
 import (
 	"auth-service/internal/domain"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"gorm.io/gorm"
 )
+
+// hashToken derives a lookup key for a refresh token without storing the
+// bearer-usable JWT itself in the database — if the DB leaks, the stored
+// values alone can't be replayed as valid tokens.
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
 
 type RefreshTokenRepository interface {
 	Save(token *domain.RefreshToken) error
@@ -21,12 +31,14 @@ func NewRefreshTokenRepository(db *gorm.DB) RefreshTokenRepository {
 }
 
 func (r *refreshTokenRepository) Save(token *domain.RefreshToken) error {
-	return r.db.Create(token).Error
+	stored := *token
+	stored.Token = hashToken(token.Token)
+	return r.db.Create(&stored).Error
 }
 
 func (r *refreshTokenRepository) Find(token string) (*domain.RefreshToken, error) {
 	var rt domain.RefreshToken
-	err := r.db.Where("token = ?", token).First(&rt).Error
+	err := r.db.Where("token = ?", hashToken(token)).First(&rt).Error
 	return &rt, err
 }
 

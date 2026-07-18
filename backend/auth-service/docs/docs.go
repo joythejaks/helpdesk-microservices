@@ -30,12 +30,12 @@ const docTemplate = `{
                 "summary": "Register user baru",
                 "parameters": [
                     {
-                        "description": "Data registrasi",
+                        "description": "Kredensial dan profil user baru",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/http.RegisterRequest"
+                            "$ref": "#/definitions/dto.RegisterRequest"
                         }
                     }
                 ],
@@ -43,7 +43,7 @@ const docTemplate = `{
                     "200": {
                         "description": "registered",
                         "schema": {
-                            "$ref": "#/definitions/response.Response"
+                            "$ref": "#/definitions/response.UserResponse"
                         }
                     },
                     "400": {
@@ -75,7 +75,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/http.LoginRequest"
+                            "$ref": "#/definitions/dto.LoginRequest"
                         }
                     }
                 ],
@@ -83,7 +83,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Token pair",
                         "schema": {
-                            "$ref": "#/definitions/response.Response"
+                            "$ref": "#/definitions/response.TokenResponse"
                         }
                     },
                     "401": {
@@ -115,7 +115,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/http.RefreshRequest"
+                            "$ref": "#/definitions/dto.RefreshRequest"
                         }
                     }
                 ],
@@ -123,7 +123,7 @@ const docTemplate = `{
                     "200": {
                         "description": "New token pair",
                         "schema": {
-                            "$ref": "#/definitions/response.Response"
+                            "$ref": "#/definitions/response.TokenResponse"
                         }
                     },
                     "401": {
@@ -188,7 +188,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "http.RegisterRequest": {
+        "dto.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -200,7 +200,7 @@ const docTemplate = `{
                 "role": { "type": "string" }
             }
         },
-        "http.LoginRequest": {
+        "dto.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -211,7 +211,7 @@ const docTemplate = `{
                 "password": { "type": "string" }
             }
         },
-        "http.RefreshRequest": {
+        "dto.RefreshRequest": {
             "type": "object",
             "required": [ "refresh_token" ],
             "properties": {
@@ -230,6 +230,35 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "response.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "success": { "type": "boolean" },
+                "message": { "type": "string" },
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "access_token": { "type": "string" },
+                        "refresh_token": { "type": "string" }
+                    }
+                }
+            }
+        },
+        "response.UserResponse": {
+            "type": "object",
+            "properties": {
+                "success": { "type": "boolean" },
+                "message": { "type": "string" },
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "integer" },
+                        "email": { "type": "string" },
+                        "role": { "type": "string" }
+                    }
                 }
             }
         }
