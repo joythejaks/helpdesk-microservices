@@ -50,3 +50,14 @@ func (u *AuthUsecase) Login(email, password string) (*domain.User, error) {
 
 	return user, nil
 }
+
+// GetByID returns the account for the currently authenticated caller (GET /me).
+func (u *AuthUsecase) GetByID(id uint) (*domain.User, error) {
+	return u.repo.FindByID(id)
+}
+
+// ListByRole returns every account with the given role — used by the
+// admin-only agent-listing endpoint.
+func (u *AuthUsecase) ListByRole(role string) ([]domain.User, error) {
+	return u.repo.FindByRole(role)
+}

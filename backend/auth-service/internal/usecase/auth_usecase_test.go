@@ -33,6 +33,25 @@ func (f *fakeUserRepository) FindByEmail(email string) (*domain.User, error) {
 	return u, nil
 }
 
+func (f *fakeUserRepository) FindByID(id uint) (*domain.User, error) {
+	for _, u := range f.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (f *fakeUserRepository) FindByRole(role string) ([]domain.User, error) {
+	var out []domain.User
+	for _, u := range f.users {
+		if u.Role == role {
+			out = append(out, *u)
+		}
+	}
+	return out, nil
+}
+
 func TestRegister_Success(t *testing.T) {
 	uc := usecase.NewAuthUsecase(newFakeRepo())
 
@@ -116,5 +135,50 @@ func TestRegister_RoleIsStored(t *testing.T) {
 	}
 	if user.Role != "admin" {
 		t.Errorf("expected role admin, got %s", user.Role)
+	}
+}
+
+func TestGetByID_ReturnsMatchingUser(t *testing.T) {
+	repo := newFakeRepo()
+	repo.users["agent1@example.com"] = &domain.User{ID: 5, Email: "agent1@example.com", Role: "agent"}
+	uc := usecase.NewAuthUsecase(repo)
+
+	user, err := uc.GetByID(5)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if user.Email != "agent1@example.com" {
+		t.Errorf("expected agent1@example.com, got %s", user.Email)
+	}
+}
+
+func TestGetByID_UnknownIDErrors(t *testing.T) {
+	repo := newFakeRepo()
+	uc := usecase.NewAuthUsecase(repo)
+
+	_, err := uc.GetByID(999)
+	if err == nil {
+		t.Error("expected error for unknown user id, got nil")
+	}
+}
+
+func TestListByRole_OnlyReturnsMatchingRole(t *testing.T) {
+	repo := newFakeRepo()
+	repo.users["agent1@example.com"] = &domain.User{ID: 1, Email: "agent1@example.com", Role: "agent"}
+	repo.users["agent2@example.com"] = &domain.User{ID: 2, Email: "agent2@example.com", Role: "agent"}
+	repo.users["user1@example.com"] = &domain.User{ID: 3, Email: "user1@example.com", Role: "user"}
+	uc := usecase.NewAuthUsecase(repo)
+
+	agents, err := uc.ListByRole("agent")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(agents) != 2 {
+		t.Fatalf("expected 2 agents, got %d", len(agents))
+	}
+	for _, a := range agents {
+		if a.Role != "agent" {
+			t.Errorf("expected only agent role, got %s", a.Role)
+		}
 	}
 }

@@ -358,6 +358,67 @@ func (h *AuthHandler) CreateStaff(c *gin.Context) {
 	response.Success(c, "staff account created")
 }
 
+// UserResponse is the public shape of a user account — never includes the
+// password hash.
+type UserResponse struct {
+	ID    uint   `json:"id"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+func toUserResponse(u *domain.User) UserResponse {
+	return UserResponse{ID: u.ID, Email: u.Email, Role: u.Role}
+}
+
+// Me returns the currently authenticated caller's own account — lets the
+// frontend ask "who is logged in" without decoding the JWT itself.
+// @Summary Profil user yang sedang login
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response
+// @Failure 401 {object} response.Response "unauthorized"
+// @Router /me [get]
+func (h *AuthHandler) Me(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 0)
+	if userIDStr == "" || err != nil {
+		response.Error(c, 401, "unauthorized", "unauthorized")
+		return
+	}
+
+	user, err := h.usecase.GetByID(uint(userID))
+	if err != nil {
+		response.Error(c, 404, "user not found", "not_found")
+		return
+	}
+
+	response.Success(c, toUserResponse(user))
+}
+
+// ListAgents returns every agent account — lets an admin pick an agent_id
+// when assigning a ticket.
+// @Summary Daftar akun agent
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response
+// @Router /admin/agents [get]
+func (h *AuthHandler) ListAgents(c *gin.Context) {
+	users, err := h.usecase.ListByRole("agent")
+	if err != nil {
+		response.Error(c, 500, "failed to list agents", "internal_error")
+		return
+	}
+
+	out := make([]UserResponse, 0, len(users))
+	for i := range users {
+		out = append(out, toUserResponse(&users[i]))
+	}
+
+	response.Success(c, out)
+}
+
 //
 // =======================
 // ROUTES
@@ -385,11 +446,15 @@ func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLi
 		// Logout memerlukan user ID dari header yang diisi oleh Gateway
 		internalOnly.POST("/logout", h.Logout)
 
-		// Admin-only staff provisioning
+		// Siapa pun yang sudah login boleh tanya profilnya sendiri
+		internalOnly.GET("/me", h.Me)
+
+		// Admin-only staff provisioning + directory
 		admin := internalOnly.Group("/admin")
 		admin.Use(RequireRole("admin"))
 		{
 			admin.POST("/staff", h.CreateStaff)
+			admin.GET("/agents", h.ListAgents)
 		}
 	}
 }
