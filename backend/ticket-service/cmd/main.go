@@ -90,6 +90,7 @@ func main() {
 		internalOnly.POST("/tickets", handler.Create)
 		internalOnly.GET("/tickets", handler.GetTickets)
 		internalOnly.GET("/tickets/:id", handler.GetByID)
+		internalOnly.GET("/tickets/:id/history", handler.GetHistory)
 		internalOnly.PATCH("/tickets/:id/assign", handler.Assign)
 		internalOnly.PATCH("/tickets/:id/status", handler.UpdateStatus)
 

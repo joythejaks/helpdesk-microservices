@@ -108,6 +108,19 @@ func (f *fakeTicketRepository) TransitionStatus(ticketID uint, fromStatus, toSta
 	return nil
 }
 
+func (f *fakeTicketRepository) FindHistory(ticketID uint) ([]domain.TicketStatusHistory, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []domain.TicketStatusHistory
+	for _, h := range f.history {
+		if h.TicketID == ticketID {
+			out = append(out, h)
+		}
+	}
+	return out, nil
+}
+
 func TestGetTicketsUsesFindAllForAdmin(t *testing.T) {
 	repo := newFakeTicketRepo(domain.Ticket{ID: 1, Title: "Admin ticket"})
 	uc := usecase.NewTicketUsecase(repo)
@@ -362,5 +375,38 @@ func TestUpdateStatus_AdminCanCloseResolvedTicket(t *testing.T) {
 	}
 	if repo.tickets[0].ClosedAt == nil {
 		t.Fatal("expected ClosedAt to be set")
+	}
+}
+
+func TestGetTicketHistory_OwnerCanAccess(t *testing.T) {
+	repo := newFakeTicketRepo(domain.Ticket{ID: 1, UserID: 7, Status: domain.StatusOpen})
+	uc := usecase.NewTicketUsecase(repo)
+
+	if _, err := uc.AssignTicket(1, 1, "admin", 5); err != nil {
+		t.Fatalf("setup: assign failed: %v", err)
+	}
+	if _, err := uc.UpdateStatus(1, 5, "agent", domain.StatusInProgress); err != nil {
+		t.Fatalf("setup: transition failed: %v", err)
+	}
+
+	history, err := uc.GetTicketHistory(1, 7, "user")
+	if err != nil {
+		t.Fatalf("expected owner to access history, got %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("expected 2 history entries (assign + transition), got %d", len(history))
+	}
+	if history[0].ToStatus != domain.StatusAssigned || history[1].ToStatus != domain.StatusInProgress {
+		t.Fatalf("expected history in chronological order, got %+v", history)
+	}
+}
+
+func TestGetTicketHistory_NonOwnerForbidden(t *testing.T) {
+	repo := newFakeTicketRepo(domain.Ticket{ID: 1, UserID: 7})
+	uc := usecase.NewTicketUsecase(repo)
+
+	_, err := uc.GetTicketHistory(1, 999, "user")
+	if !errors.Is(err, usecase.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden for a non-owner, got %v", err)
 	}
 }

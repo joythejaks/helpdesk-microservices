@@ -143,3 +143,12 @@ func (r *ticketRepository) TransitionStatus(ticketID uint, fromStatus, toStatus 
 		}).Error
 	})
 }
+
+func (r *ticketRepository) FindHistory(ticketID uint) ([]domain.TicketStatusHistory, error) {
+	var history []domain.TicketStatusHistory
+	err := r.db.
+		Where("ticket_id = ?", ticketID).
+		Order("changed_at asc").
+		Find(&history).Error
+	return history, err
+}

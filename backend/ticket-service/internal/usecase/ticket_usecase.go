@@ -85,6 +85,15 @@ func (u *TicketUsecase) GetTicketByID(id, userID uint, role string) (*domain.Tic
 	}
 }
 
+// GetTicketHistory returns a ticket's status audit trail, subject to the
+// same ownership rules as GetTicketByID.
+func (u *TicketUsecase) GetTicketHistory(id, userID uint, role string) ([]domain.TicketStatusHistory, error) {
+	if _, err := u.GetTicketByID(id, userID, role); err != nil {
+		return nil, err
+	}
+	return u.repo.FindHistory(id)
+}
+
 // AssignTicket assigns a ticket to an agent. Admins may assign/reassign to
 // any agent at any time; agents may only claim an unassigned ticket for
 // themselves; users may never assign. Returns the resolved agent ID (useful

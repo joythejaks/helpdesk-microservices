@@ -19,8 +19,10 @@ type Ticket struct {
 	AssignedAgentID *uint      `json:"assigned_agent_id"`
 	Status          string     `gorm:"default:open" json:"status"`
 	Priority        string     `gorm:"default:Medium" json:"priority"`
-	Requester       string     `json:"requester"`
-	Department      string     `json:"department"`
+	// Department is a ticket category/routing tag, not the requester's
+	// identity. The requester's real identity is UserID — resolve a display
+	// name for it via GET /me or GET /admin/agents, don't trust free text.
+	Department string `json:"department"`
 	AssignedAt      *time.Time `json:"assigned_at,omitempty"`
 	ResolvedAt      *time.Time `json:"resolved_at,omitempty"`
 	ClosedAt        *time.Time `json:"closed_at,omitempty"`

@@ -76,8 +76,9 @@ type CreateTicketRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description"`
 	Priority    string `json:"priority"`
-	Requester   string `json:"requester"`
-	Department  string `json:"department"`
+	// Department is a ticket category/routing tag (e.g. "IT", "HR"), not
+	// the requester's identity — free text is fine here.
+	Department string `json:"department"`
 }
 
 func (h *TicketHandler) Create(c *gin.Context) {
@@ -98,16 +99,12 @@ func (h *TicketHandler) Create(c *gin.Context) {
 		Description: req.Description,
 		UserID:      userID,
 		Priority:    req.Priority,
-		Requester:   req.Requester,
 		Department:  req.Department,
 	}
 
 	// Set defaults if empty
 	if ticket.Priority == "" {
 		ticket.Priority = "Medium"
-	}
-	if ticket.Requester == "" {
-		ticket.Requester = "Requester"
 	}
 	if ticket.Department == "" {
 		ticket.Department = "Helpdesk"
@@ -310,4 +307,31 @@ func (h *TicketHandler) GetByID(c *gin.Context) {
 	}
 
 	response.Success(c, ticket)
+}
+
+// GetHistory returns a ticket's status audit trail — the "created to
+// resolved" timeline — subject to the same ownership rules as GetByID.
+func (h *TicketHandler) GetHistory(c *gin.Context) {
+	userID, role, ok := requireUser(c)
+	if !ok {
+		return
+	}
+
+	var id uint
+	if _, err := fmt.Sscanf(c.Param("id"), "%d", &id); err != nil || id == 0 {
+		response.Error(c, 400, "invalid ticket id", "BAD_REQUEST")
+		return
+	}
+
+	history, err := h.usecase.GetTicketHistory(id, userID, role)
+	if err != nil {
+		if errors.Is(err, usecase.ErrForbidden) {
+			logger.Log.WithField("user_id", userID).WithField("ticket_id", id).
+				Warn("blocked cross-user ticket history access attempt")
+		}
+		response.Error(c, 404, "ticket not found", "NOT_FOUND")
+		return
+	}
+
+	response.Success(c, history)
 }

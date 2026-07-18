@@ -29,4 +29,7 @@ type TicketRepository interface {
 	// TransitionStatus updates a ticket's status (setting ResolvedAt/
 	// ClosedAt when applicable) and records a history row.
 	TransitionStatus(ticketID uint, fromStatus, toStatus string, changedBy uint, changedAt time.Time) error
+
+	// FindHistory returns a ticket's status audit trail, oldest first.
+	FindHistory(ticketID uint) ([]TicketStatusHistory, error)
 }
