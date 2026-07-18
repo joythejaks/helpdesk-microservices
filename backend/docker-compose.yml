@@ -70,8 +70,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./ticket-service/.env
-    ports:
-      - "8082:8082"
+    # Internal only — reachable via api-gateway or the docker network by
+    # service name, not published to the host.
     depends_on:
       ticket-db:
         condition: service_healthy

@@ -1,7 +1,14 @@
 package main
 
 import (
-	"ticket-service/internal/delivery/http"
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	delivery "ticket-service/internal/delivery/http"
 	"ticket-service/internal/delivery/messaging"
 	"ticket-service/internal/domain"
 	"ticket-service/internal/repository"
@@ -15,6 +22,12 @@ import (
 )
 
 func main() {
+	// Self-contained healthcheck mode for the container's HEALTHCHECK
+	// instruction (distroless runtime image has no shell/wget).
+	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
+		os.Exit(runSelfHealthcheck())
+	}
+
 	godotenv.Load()
 
 	config.Load()
@@ -28,12 +41,19 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("failed to connect DB:", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Log.Fatal("failed to get database instance:", err)
+	}
 
-	db.AutoMigrate(&domain.Ticket{})
+	db.AutoMigrate(&domain.Ticket{}, &domain.TicketStatusHistory{})
 
 	// repo & usecase
 	repo := repository.NewTicketRepository(db)
-	usecase := usecase.NewTicketUsecase(repo)
+	ticketUsecase := usecase.NewTicketUsecase(repo)
+
+	reportRepo := repository.NewReportRepository(db)
+	reportUsecase := usecase.NewReportUsecase(reportRepo)
 
 	// RabbitMQ
 	publisher, err := messaging.NewPublisher(rabbitURL)
@@ -41,24 +61,84 @@ func main() {
 		logger.Log.Warn("rabbitmq not ready:", err)
 	}
 
-	handler := http.NewTicketHandler(usecase, publisher)
+	handler := delivery.NewTicketHandler(ticketUsecase, publisher)
+	reportHandler := delivery.NewReportHandler(reportUsecase)
 
 	r := gin.Default()
 
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
 
-	// health
+	// health — intentionally outside the internal-secret gate so the
+	// container's own HEALTHCHECK (calling itself over localhost) still works.
 	r.GET("/health", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if sqlDB.PingContext(ctx) != nil {
+			response.Error(c, http.StatusServiceUnavailable, "database disconnected", "unavailable")
+			return
+		}
 		response.Success(c, "ok")
 	})
 
-	// endpoint
-	r.POST("/tickets", handler.Create)
-	r.GET("/tickets", handler.GetTickets)
-	r.GET("/tickets/:id", handler.GetByID)
+	// Business routes only reachable via the API gateway (proven by
+	// X-Internal-Secret) — closes off calling this service directly and
+	// spoofing X-User-ID/X-User-ROLE.
+	internalOnly := r.Group("/")
+	internalOnly.Use(delivery.InternalOnlyMiddleware(config.AppConfig.InternalSecret))
+	{
+		internalOnly.POST("/tickets", handler.Create)
+		internalOnly.GET("/tickets", handler.GetTickets)
+		internalOnly.GET("/tickets/:id", handler.GetByID)
+		internalOnly.PATCH("/tickets/:id/assign", handler.Assign)
+		internalOnly.PATCH("/tickets/:id/status", handler.UpdateStatus)
 
-	logger.Log.Info("ticket-service running on port " + port)
+		internalOnly.GET("/reports/summary", reportHandler.Summary)
+		internalOnly.GET("/reports/agents", reportHandler.AgentPerformance)
+	}
 
-	r.Run(":" + port)
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
+	}
+
+	go func() {
+		logger.Log.Info("ticket-service running on port " + port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Log.Fatal("listen: ", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Log.Info("shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Log.Fatal("server forced to shutdown: ", err)
+	}
+
+	sqlDB.Close()
+	logger.Log.Info("server exited")
+}
+
+func runSelfHealthcheck() int {
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8082"
+	}
+
+	client := http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://127.0.0.1:" + port + "/health")
+	if err != nil {
+		return 1
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 1
+	}
+	return 0
 }

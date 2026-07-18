@@ -6,26 +6,28 @@ import (
 )
 
 type Config struct {
-	AppPort     string
-	RabbitMQURL string
-	DBHost      string
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBPort      string
+	AppPort        string
+	RabbitMQURL    string
+	DBHost         string
+	DBUser         string
+	DBPassword     string
+	DBName         string
+	DBPort         string
+	InternalSecret string
 }
 
 var AppConfig Config
 
 func Load() {
 	AppConfig = Config{
-		AppPort:     os.Getenv("APP_PORT"),
-		RabbitMQURL: os.Getenv("RABBITMQ_URL"),
-		DBHost:      os.Getenv("DB_HOST"),
-		DBUser:      os.Getenv("DB_USER"),
-		DBPassword:  os.Getenv("DB_PASSWORD"),
-		DBName:      os.Getenv("DB_NAME"),
-		DBPort:      os.Getenv("DB_PORT"),
+		AppPort:        os.Getenv("APP_PORT"),
+		RabbitMQURL:    os.Getenv("RABBITMQ_URL"),
+		DBHost:         os.Getenv("DB_HOST"),
+		DBUser:         os.Getenv("DB_USER"),
+		DBPassword:     os.Getenv("DB_PASSWORD"),
+		DBName:         os.Getenv("DB_NAME"),
+		DBPort:         os.Getenv("DB_PORT"),
+		InternalSecret: os.Getenv("INTERNAL_SHARED_SECRET"),
 	}
 
 	if AppConfig.AppPort == "" {
@@ -34,5 +36,9 @@ func Load() {
 
 	if AppConfig.DBHost == "" {
 		log.Fatal("DB_HOST is required")
+	}
+
+	if AppConfig.InternalSecret == "" {
+		log.Fatal("INTERNAL_SHARED_SECRET is required")
 	}
 }
