@@ -1,7 +1,9 @@
 package consumer
 
 import (
+	"encoding/json"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"notification-service/internal/delivery/ws"
@@ -13,6 +15,15 @@ const (
 	startupRetryDelay = 3 * time.Second // jeda antar retry saat startup
 	reconnectDelay    = 2 * time.Second // jeda sebelum reconnect setelah disconnect
 )
+
+var connected atomic.Bool
+
+// IsConnected reports whether the consumer currently has a live RabbitMQ
+// connection, so /health can reflect real dependency state instead of
+// always reporting ok.
+func IsConnected() bool {
+	return connected.Load()
+}
 
 func StartConsumer(url string) {
 	go func() {
@@ -69,6 +80,8 @@ func consume(url string) error {
 	chClosed := ch.NotifyClose(make(chan *amqp091.Error, 1))
 
 	log.Println("Connected to RabbitMQ consumer")
+	connected.Store(true)
+	defer connected.Store(false)
 
 	for {
 		select {
@@ -77,9 +90,23 @@ func consume(url string) error {
 				return nil
 			}
 
-			msg := string(d.Body)
-			log.Println("Received:", msg)
-			ws.Send(msg)
+			raw := string(d.Body)
+			log.Println("Received:", raw)
+
+			var evt event
+			if err := json.Unmarshal(d.Body, &evt); err != nil {
+				log.Println("⚠️ malformed notification event, dropping:", err)
+				continue
+			}
+
+			switch {
+			case evt.TargetUserID != nil:
+				ws.SendToUser(*evt.TargetUserID, raw)
+			case len(evt.TargetRoles) > 0:
+				ws.SendToRoles(evt.TargetRoles, raw)
+			default:
+				log.Println("⚠️ notification event has no target, dropping:", raw)
+			}
 		case err := <-connClosed:
 			if err != nil {
 				return err
