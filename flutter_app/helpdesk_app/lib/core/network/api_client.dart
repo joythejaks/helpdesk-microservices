@@ -20,28 +20,68 @@ class ApiClient {
 
   final http.Client _httpClient;
 
+  /// Invoked once when a request comes back 401. Should attempt a token
+  /// refresh and return the new access token, or null if the session
+  /// could not be recovered (the original 401 is then surfaced as-is).
+  Future<String?> Function()? onUnauthorized;
+
   Future<Map<String, dynamic>> get(
     String path, {
     String? token,
     Map<String, String>? query,
-  }) async {
+  }) {
     final uri = Uri.parse(
       '${Api.baseUrl}$path',
     ).replace(queryParameters: query);
-    final response = await _httpClient.get(uri, headers: _headers(token));
-    return _decode(response);
+    return _sendWithRefresh(
+      token: token,
+      request: (t) => _httpClient.get(uri, headers: _headers(t)),
+    );
   }
 
   Future<Map<String, dynamic>> post(
     String path, {
     Map<String, dynamic>? body,
     String? token,
-  }) async {
-    final response = await _httpClient.post(
-      Uri.parse('${Api.baseUrl}$path'),
-      headers: _headers(token),
-      body: jsonEncode(body ?? {}),
+  }) {
+    final uri = Uri.parse('${Api.baseUrl}$path');
+    return _sendWithRefresh(
+      token: token,
+      request: (t) => _httpClient.post(
+        uri,
+        headers: _headers(t),
+        body: jsonEncode(body ?? {}),
+      ),
     );
+  }
+
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? body,
+    String? token,
+  }) {
+    final uri = Uri.parse('${Api.baseUrl}$path');
+    return _sendWithRefresh(
+      token: token,
+      request: (t) => _httpClient.patch(
+        uri,
+        headers: _headers(t),
+        body: jsonEncode(body ?? {}),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _sendWithRefresh({
+    required String? token,
+    required Future<http.Response> Function(String? token) request,
+  }) async {
+    final response = await request(token);
+    if (response.statusCode == 401 && token != null && onUnauthorized != null) {
+      final refreshed = await onUnauthorized!();
+      if (refreshed != null) {
+        return _decode(await request(refreshed));
+      }
+    }
     return _decode(response);
   }
 

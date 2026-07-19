@@ -12,11 +12,8 @@ class TicketCard extends StatelessWidget {
 
   String _subtitle() {
     final parts = <String>[];
-    if (ticket.requester.isNotEmpty) parts.add(ticket.requester);
     if (ticket.department.isNotEmpty) parts.add(ticket.department);
-    if (parts.isEmpty && ticket.userId != null) {
-      parts.add('User #${ticket.userId}');
-    }
+    if (ticket.userId != null) parts.add('User #${ticket.userId}');
     return parts.join(' - ');
   }
 

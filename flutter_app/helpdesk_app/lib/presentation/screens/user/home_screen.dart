@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/bloc/notification/notification_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
 import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
@@ -34,6 +35,7 @@ class HomeScreen extends StatelessWidget {
         final tickets = switch (state) {
           TicketLoaded(:final tickets) => tickets,
           TicketCreating(:final tickets) => tickets,
+          TicketMutating(:final tickets) => tickets,
           TicketFailure(:final tickets) => tickets,
           _ => <Ticket>[],
         };
@@ -48,10 +50,15 @@ class HomeScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
             children: [
-              HeaderBar(
-                title: '${_greeting()}, User',
-                subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
-                trailing: Icons.notifications_none,
+              BlocBuilder<NotificationBloc, NotificationState>(
+                builder: (context, notifState) => HeaderBar(
+                  title: '${_greeting()}, User',
+                  subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
+                  trailing: Icons.notifications_none,
+                  trailingBadgeCount: notifState.unreadCount,
+                  onTrailingTap: () =>
+                      context.read<NotificationBloc>().add(const NotificationCleared()),
+                ),
               ),
               const SizedBox(height: 26),
               Row(

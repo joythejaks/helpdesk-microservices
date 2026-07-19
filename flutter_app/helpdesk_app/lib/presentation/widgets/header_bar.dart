@@ -9,6 +9,7 @@ class HeaderBar extends StatelessWidget {
     this.trailing,
     this.onLeadingTap,
     this.onTrailingTap,
+    this.trailingBadgeCount,
   });
 
   final String title;
@@ -17,6 +18,7 @@ class HeaderBar extends StatelessWidget {
   final IconData? trailing;
   final VoidCallback? onLeadingTap;
   final VoidCallback? onTrailingTap;
+  final int? trailingBadgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +38,36 @@ class HeaderBar extends StatelessWidget {
           ),
         ),
         if (trailing != null)
-          IconButton.filledTonal(
-            onPressed: onTrailingTap,
-            icon: Icon(trailing),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton.filledTonal(
+                onPressed: onTrailingTap,
+                icon: Icon(trailing),
+              ),
+              if ((trailingBadgeCount ?? 0) > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFBA1A1A),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$trailingBadgeCount',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
       ],
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/auth_repository.dart';
@@ -65,9 +67,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginSubmitted>(_onLoginSubmitted);
     on<AuthRegisterSubmitted>(_onRegisterSubmitted);
     on<AuthLogoutRequested>(_onLogoutRequested);
+    _sessionExpiredSubscription = _authRepository.onSessionExpired.listen(
+      (_) => add(const AuthLogoutRequested()),
+    );
   }
 
   final AuthRepository _authRepository;
+  late final StreamSubscription<void> _sessionExpiredSubscription;
+
+  @override
+  Future<void> close() {
+    _sessionExpiredSubscription.cancel();
+    return super.close();
+  }
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());

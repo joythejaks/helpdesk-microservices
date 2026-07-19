@@ -56,6 +56,7 @@ class _TicketListScreenState extends State<TicketListScreen> {
         final allTickets = switch (state) {
           TicketLoaded(:final tickets) => tickets,
           TicketCreating(:final tickets) => tickets,
+          TicketMutating(:final tickets) => tickets,
           TicketFailure(:final tickets) => tickets,
           _ => <Ticket>[],
         };

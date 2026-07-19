@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/network/api_client.dart';
+import 'core/services/env_config.dart';
+import 'core/services/websocket_service.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/helpdesk_theme.dart';
+import 'data/admin_repository.dart';
 import 'data/auth_repository.dart';
 import 'data/ticket_repository.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
+import 'presentation/bloc/notification/notification_bloc.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
@@ -24,6 +28,7 @@ class HelpdeskApp extends StatelessWidget {
       providers: [
         RepositoryProvider(create: (_) => ApiClient()),
         RepositoryProvider(create: (_) => TokenStorage()),
+        RepositoryProvider(create: (_) => WebSocketService(url: EnvConfig.wsUrl)),
         RepositoryProvider(
           create: (context) => AuthRepository(
             apiClient: context.read<ApiClient>(),
@@ -32,6 +37,12 @@ class HelpdeskApp extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (context) => TicketRepository(
+            apiClient: context.read<ApiClient>(),
+            tokenStorage: context.read<TokenStorage>(),
+          ),
+        ),
+        RepositoryProvider(
+          create: (context) => AdminRepository(
             apiClient: context.read<ApiClient>(),
             tokenStorage: context.read<TokenStorage>(),
           ),
@@ -48,16 +59,39 @@ class HelpdeskApp extends StatelessWidget {
             create: (context) =>
                 TicketBloc(ticketRepository: context.read<TicketRepository>()),
           ),
+          BlocProvider(
+            create: (context) => NotificationBloc(
+              webSocketService: context.read<WebSocketService>(),
+              ticketBloc: context.read<TicketBloc>(),
+            ),
+          ),
         ],
-        child: MaterialApp(
-          title: 'Helpdesk Ticketing System',
-          debugShowCheckedModeBanner: false,
-          theme: HelpdeskTheme.light(),
-          initialRoute: '/splash',
-          routes: {
-            '/splash': (context) => const SplashScreen(),
-            '/login': (context) => const LoginScreen(),
-          },
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) async {
+                final notifications = context.read<NotificationBloc>();
+                if (state is Authenticated) {
+                  final token = await context.read<TokenStorage>().readAccessToken();
+                  if (token != null && token.isNotEmpty) {
+                    notifications.add(NotificationConnectRequested(token));
+                  }
+                } else if (state is Unauthenticated) {
+                  notifications.add(const NotificationDisconnectRequested());
+                }
+              },
+            ),
+          ],
+          child: MaterialApp(
+            title: 'Helpdesk Ticketing System',
+            debugShowCheckedModeBanner: false,
+            theme: HelpdeskTheme.light(),
+            initialRoute: '/splash',
+            routes: {
+              '/splash': (context) => const SplashScreen(),
+              '/login': (context) => const LoginScreen(),
+            },
+          ),
         ),
       ),
     );

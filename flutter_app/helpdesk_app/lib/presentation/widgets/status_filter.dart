@@ -12,7 +12,15 @@ class StatusFilter extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  static const _filters = ['All', 'Open', 'In Progress', 'Resolved'];
+  static const _filters = [
+    'All',
+    'Open',
+    'Assigned',
+    'In Progress',
+    'Pending',
+    'Resolved',
+    'Closed',
+  ];
 
   @override
   Widget build(BuildContext context) {

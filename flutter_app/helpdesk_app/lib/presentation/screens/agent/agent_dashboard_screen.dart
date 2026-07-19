@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/presentation/bloc/notification/notification_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 import 'package:helpdesk_app/presentation/widgets/progress_line.dart';
@@ -18,6 +19,7 @@ class AgentDashboardScreen extends StatelessWidget {
         final tickets = switch (state) {
           TicketLoaded(:final tickets) => tickets,
           TicketCreating(:final tickets) => tickets,
+          TicketMutating(:final tickets) => tickets,
           TicketFailure(:final tickets) => tickets,
           _ => <Ticket>[],
         };
@@ -25,10 +27,15 @@ class AgentDashboardScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
           children: [
-            const HeaderBar(
-              title: 'Agent Dashboard',
-              subtitle: 'Ringkasan performa dan antrean kerja',
-              trailing: Icons.account_circle_outlined,
+            BlocBuilder<NotificationBloc, NotificationState>(
+              builder: (context, notifState) => HeaderBar(
+                title: 'Agent Dashboard',
+                subtitle: 'Ringkasan performa dan antrean kerja',
+                trailing: Icons.notifications_outlined,
+                trailingBadgeCount: notifState.unreadCount,
+                onTrailingTap: () =>
+                    context.read<NotificationBloc>().add(const NotificationCleared()),
+              ),
             ),
             const SizedBox(height: 26),
             SurfaceCard(
