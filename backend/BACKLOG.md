@@ -29,24 +29,54 @@ Not yet scheduled — pick items off here as needed.
 
 ## Important — real functional gaps
 
-- [ ] **Ticket comments/notes thread.** The `pending` status
-      ("waiting on user for more info") implies back-and-forth
-      communication that doesn't exist yet — tickets only have a single
-      `Description` set at creation. Needs: new table (ticket_id, author_id,
-      body, created_at), `POST/GET /tickets/:id/comments`, and probably a
-      new notification event type (`ticket_commented`).
-- [ ] **Notification persistence.** Delivery is WebSocket-only right now
-      (`notification-service/internal/delivery/ws`) — if a user isn't
-      connected when an event fires, it's gone. Needs a notifications table
-      + `GET /notifications` (+ read/unread state) so the frontend can show
-      a bell icon with a backlog, not just live pushes.
-- [ ] **Full end-to-end verification with Docker running.** Everything this
-      session was validated via `go build`/`go vet`/unit tests and isolated
-      httptest smoke tests — the Docker daemon wasn't available, so the full
-      stack (`docker compose up`) has never actually been run together.
-      Worth doing a real pass — register → login → create ticket → assign →
-      transition status → confirm notification arrives — once Docker is
-      available.
+- [x] **Ticket comments/notes thread.** `TicketComment` (ticket_id,
+      author_id, author_role, body, created_at), `POST/GET
+      /tickets/:id/comments` in ticket-service, authorization reuses
+      `TicketUsecase.GetTicketByID` (owner/assigned agent/admin only).
+      Posting publishes a `ticket_commented` event: staff commenting
+      notifies the owner, the owner commenting notifies the assigned agent
+      (or the `admin` role if the ticket isn't assigned yet).
+- [x] **Notification persistence.** notification-service now has its own
+      Postgres DB (`notification-db` in `docker-compose.yml`) and a
+      `Notification` table. `GET /notifications` (+ `unread_only`
+      filter), `PATCH /notifications/:id/read`, `PATCH
+      /notifications/read-all` — self-authenticated via `Authorization:
+      Bearer` (this service was never behind the gateway to begin with,
+      since the gateway's reverse proxy doesn't handle WS upgrades; REST
+      now follows the same trust model `/ws` already used). Scope
+      decision: only events with a concrete `TargetUserID` are persisted
+      (ticket_assigned, ticket_status_changed, ticket_commented-to-one-
+      person) — role broadcasts (`TargetRoles`, e.g. new-ticket pings to
+      admin+agent) stay WebSocket-only, since persisting those would need
+      this service to know the full admin/agent roster, which lives in
+      auth-service's DB, not this one.
+- [x] **Full end-to-end verification with Docker running.** Docker is
+      reachable now. `docker compose up --build` initially failed on
+      **`api-gateway`** — its `Dockerfile` built `./cmd/main.go` (a single
+      file) instead of the whole `./cmd` package, so `middleware.go`
+      (rate limiter, request-ID/internal-secret middleware, self-
+      healthcheck) silently wasn't compiled in — undefined-symbol build
+      errors. The other three services only ever had one file in `cmd/`,
+      so the same pattern happened to work for them. Fixed to
+      `go build -o main ./cmd`. With that fix, the full stack builds and
+      ran the real flow via `curl` against `localhost:8080`: register →
+      (promoted to admin directly in `auth-db` — there's still no
+      bootstrap path for the very first admin, see below) → `POST
+      /auth/admin/staff` → login as user/agent/admin → create ticket →
+      agent self-claim via `scope=queue` → status transition → comments
+      both directions → `GET /reports/summary` / `GET /reports/agents` /
+      `GET /auth/admin/agents` as admin → `POST /auth/refresh`. Every
+      response matched its documented shape exactly. Did not re-verify
+      notification persistence/mark-read in this pass (that's the
+      notification-service's own REST API, unrelated to this round of
+      changes).
+- [ ] **No bootstrap path for the first admin account.** `POST
+      /auth/register` always forces `role="user"` (correct — role must
+      never come from the client) and `POST /auth/admin/staff` requires
+      an existing admin to call it, so there's no way to create the
+      *first* admin without reaching directly into `auth-db`. Fine for
+      dev; worth a one-time seed/CLI/env-var-gated bootstrap before this
+      goes anywhere real.
 
 ## Production infrastructure (not new services)
 
@@ -75,9 +105,30 @@ cross-cutting infra, not more domain services:
 
 ## Nice-to-have — later
 
-- [ ] File attachments on tickets (screenshots/logs).
-- [ ] SLA/due-date tracking per priority.
-- [ ] Full-text search on ticket title/description.
+- [x] **File attachments on tickets.** Stored inline in Postgres (`bytea`
+      column on `TicketAttachment`, 5MB cap enforced in
+      `AttachmentUsecase`) rather than adding object storage — kept in the
+      "no new infra" spirit already established for this project's scale.
+      `POST/GET /tickets/:id/attachments` (metadata-only list, blob never
+      loaded for listing), `GET /tickets/:id/attachments/:attachmentId`
+      (download). Same ownership rules as comments, and uploading
+      publishes `ticket_attachment_added` through the same targeting logic
+      (now shared between comments and attachments as
+      `ticketActivityTarget` in `internal/delivery/http/activity_target.go`).
+- [x] **SLA/due-date tracking per priority.** `Ticket.DueAt` is computed at
+      creation from a `slaDurations` map in `ticket_usecase.go` (High: 4h,
+      Medium: 24h, Low: 72h — easy to tune later). `GET /tickets?overdue=true`
+      filters to tickets past `DueAt` that aren't resolved/closed yet.
+- [x] **Full-text search on ticket title/description.** `GET
+      /tickets?search=` does an `ILIKE` match against both columns —
+      deliberately not real Postgres full-text search (`tsvector`/`GIN`
+      index); `ILIKE` is plenty for this project's ticket volume and adds
+      no schema complexity. Worth upgrading if ticket volume ever makes
+      `ILIKE` scans slow.
 - [ ] Replace `db.AutoMigrate` with a real migration tool
       (e.g. `golang-migrate`) once schema changes start needing renames/
-      backfills instead of purely additive columns.
+      backfills instead of purely additive columns. Deliberately not done
+      this session — none of the changes above needed a rename/backfill,
+      and adopting migration tooling blind (Docker unavailable to verify
+      against a real Postgres) risked breaking every service's startup for
+      no concrete near-term need.
