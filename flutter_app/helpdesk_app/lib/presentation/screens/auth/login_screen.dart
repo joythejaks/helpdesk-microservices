@@ -3,15 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
+import 'package:helpdesk_app/presentation/navigation/role_router.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/app_mark.dart';
 import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
 import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
-import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
-import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
-import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
-import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
-import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,30 +34,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          // Navigasi Berdasarkan Role (Fase 1)
-          final role = state.user.role.toLowerCase();
-          
-          Widget nextScreen;
-          if (role == 'agent') {
-            // Agent melihat Dashboard atau List
-            nextScreen = TicketListScreen(
-              onOpenTicket: (t) => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: t)),
-              ),
-            );
-          } else {
-            nextScreen = HomeScreen(
-              onOpenTicket: (t) => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: t)),
-              ),
-              onCreate: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CreateTicketScreen()),
-              ),
-            );
-          }
-
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => nextScreen),
+            MaterialPageRoute(builder: (_) => homeForRole(state.user)),
           );
         }
 

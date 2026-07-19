@@ -1,5 +1,6 @@
 import '../core/network/api_client.dart';
 import '../core/storage/token_storage.dart';
+import '../models/app_user.dart';
 
 class AuthRepository {
   AuthRepository({
@@ -14,6 +15,18 @@ class AuthRepository {
   Future<bool> hasSession() async {
     final token = await _tokenStorage.readAccessToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// Fetches the currently authenticated caller's own account — lets the
+  /// app know who's logged in and what role they have without decoding
+  /// the JWT itself.
+  Future<AppUser> getCurrentUser() async {
+    final token = await _tokenStorage.readAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiException('Sesi login tidak ditemukan', 'UNAUTHORIZED');
+    }
+    final response = await _apiClient.get('/auth/me', token: token);
+    return AppUser.fromJson(response['data'] as Map<String, dynamic>);
   }
 
   Future<void> login({required String email, required String password}) async {
@@ -43,7 +56,12 @@ class AuthRepository {
   Future<void> logout() async {
     final token = await _tokenStorage.readAccessToken();
     if (token != null) {
-      await _apiClient.post('/auth/logout', token: token);
+      try {
+        await _apiClient.post('/auth/logout', token: token);
+      } catch (_) {
+        // Best-effort — always clear the local session regardless of
+        // whether the server call succeeded (e.g. token already expired).
+      }
     }
     await _tokenStorage.clear();
   }

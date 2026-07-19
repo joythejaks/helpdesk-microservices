@@ -8,7 +8,6 @@ import 'data/auth_repository.dart';
 import 'data/ticket_repository.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
-import 'presentation/screens/user/dashboard_shell.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 
@@ -58,7 +57,6 @@ class HelpdeskApp extends StatelessWidget {
           routes: {
             '/splash': (context) => const SplashScreen(),
             '/login': (context) => const LoginScreen(),
-            '/dashboard': (context) => const DashboardShell(),
           },
         ),
       ),

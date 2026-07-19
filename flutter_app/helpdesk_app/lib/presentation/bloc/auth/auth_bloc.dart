@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/auth_repository.dart';
+import '../../../models/app_user.dart';
 
 sealed class AuthEvent {
   const AuthEvent();
@@ -41,7 +42,9 @@ class AuthLoading extends AuthState {
 }
 
 class Authenticated extends AuthState {
-  const Authenticated();
+  const Authenticated(this.user);
+
+  final AppUser user;
 }
 
 class Unauthenticated extends AuthState {
@@ -68,8 +71,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
+
     final hasSession = await _authRepository.hasSession();
-    emit(hasSession ? const Authenticated() : const Unauthenticated());
+    if (!hasSession) {
+      emit(const Unauthenticated());
+      return;
+    }
+
+    try {
+      final user = await _authRepository.getCurrentUser();
+      emit(Authenticated(user));
+    } catch (_) {
+      // Stored token is invalid/expired — clear it and send them to login.
+      await _authRepository.logout();
+      emit(const Unauthenticated());
+    }
   }
 
   Future<void> _onLoginSubmitted(
@@ -79,7 +95,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       await _authRepository.login(email: event.email, password: event.password);
-      emit(const Authenticated());
+      final user = await _authRepository.getCurrentUser();
+      emit(Authenticated(user));
     } catch (error) {
       emit(AuthFailure(error.toString()));
       emit(const Unauthenticated());
@@ -97,7 +114,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
       );
       await _authRepository.login(email: event.email, password: event.password);
-      emit(const Authenticated());
+      final user = await _authRepository.getCurrentUser();
+      emit(Authenticated(user));
     } catch (error) {
       emit(AuthFailure(error.toString()));
       emit(const Unauthenticated());

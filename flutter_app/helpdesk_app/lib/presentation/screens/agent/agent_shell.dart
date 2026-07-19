@@ -1,30 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/models/ticket.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
-import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
-import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
+import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
 
 const _navItems = [
-  (Icons.home_outlined, 'Home'),
+  (Icons.dashboard_outlined, 'Dashboard'),
   (Icons.confirmation_number_outlined, 'Tickets'),
-  (Icons.add_circle_outline, 'Create'),
 ];
 
-class DashboardShell extends StatefulWidget {
-  const DashboardShell({super.key});
+/// Shell for agent (and, until a dedicated admin UI exists, admin) logins —
+/// keeps the agent dashboard reachable alongside the ticket list, which
+/// wasn't possible before (agents were pushed straight into a bare
+/// TicketListScreen with no nav bar at all).
+class AgentShell extends StatefulWidget {
+  const AgentShell({super.key});
 
   @override
-  State<DashboardShell> createState() => _DashboardShellState();
+  State<AgentShell> createState() => _AgentShellState();
 }
 
-class _DashboardShellState extends State<DashboardShell> {
+class _AgentShellState extends State<AgentShell> {
   int index = 0;
 
   @override
@@ -36,26 +37,14 @@ class _DashboardShellState extends State<DashboardShell> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(
-        onOpenTicket: _openTicket,
-        onCreate: () => setState(() => index = 2),
-      ),
+      const AgentDashboardScreen(),
       TicketListScreen(onOpenTicket: _openTicket),
-      const CreateTicketScreen(),
     ];
 
     return AppFrame(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: pages[index],
-        floatingActionButton: index == 2
-            ? null
-            : FloatingActionButton(
-                onPressed: () => setState(() => index = 2),
-                backgroundColor: HelpdeskTheme.primary,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.add),
-              ),
         bottomNavigationBar: GlassNavBar(
           index: index,
           onChanged: (value) => setState(() => index = value),

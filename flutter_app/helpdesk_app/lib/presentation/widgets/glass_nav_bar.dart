@@ -5,20 +5,19 @@ import 'package:flutter/material.dart';
 import '../../core/theme/helpdesk_theme.dart';
 
 class GlassNavBar extends StatelessWidget {
-  const GlassNavBar({super.key, required this.index, required this.onChanged});
+  const GlassNavBar({
+    super.key,
+    required this.index,
+    required this.onChanged,
+    required this.items,
+  });
 
   final int index;
   final ValueChanged<int> onChanged;
+  final List<(IconData, String)> items;
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      (Icons.home_outlined, 'Home'),
-      (Icons.confirmation_number_outlined, 'Tickets'),
-      (Icons.add_circle_outline, 'Create'),
-      (Icons.dashboard_outlined, 'Agent'),
-    ];
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
       child: ClipRRect(
