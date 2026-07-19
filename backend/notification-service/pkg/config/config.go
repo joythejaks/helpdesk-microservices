@@ -15,6 +15,11 @@ type Config struct {
 	WSRateLimitRPS   float64
 	WSRateLimitBurst float64
 	MaxWSConnections int
+	DBHost           string
+	DBUser           string
+	DBPassword       string
+	DBName           string
+	DBPort           string
 }
 
 var AppConfig Config
@@ -28,6 +33,11 @@ func Load() {
 		WSRateLimitRPS:   parseFloatOrDefault(os.Getenv("WS_RATE_LIMIT_RPS"), 5),
 		WSRateLimitBurst: parseFloatOrDefault(os.Getenv("WS_RATE_LIMIT_BURST"), 10),
 		MaxWSConnections: parseIntOrDefault(os.Getenv("MAX_WS_CONNECTIONS"), 1000),
+		DBHost:           os.Getenv("DB_HOST"),
+		DBUser:           os.Getenv("DB_USER"),
+		DBPassword:       os.Getenv("DB_PASSWORD"),
+		DBName:           os.Getenv("DB_NAME"),
+		DBPort:           os.Getenv("DB_PORT"),
 	}
 
 	if AppConfig.AppPort == "" {
@@ -36,6 +46,10 @@ func Load() {
 
 	if AppConfig.JWTSecret == "" {
 		log.Fatal("JWT_SECRET is required")
+	}
+
+	if AppConfig.DBHost == "" {
+		log.Fatal("DB_HOST is required")
 	}
 }
 

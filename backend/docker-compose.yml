@@ -33,6 +33,23 @@ services:
       timeout: 5s
       retries: 5
 
+  notification-db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+      POSTGRES_DB: notification_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3-management
     restart: unless-stopped
@@ -86,6 +103,8 @@ services:
     ports:
       - "8083:8083"
     depends_on:
+      notification-db:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -103,4 +122,5 @@ services:
 volumes:
   auth_db_data:
   ticket_db_data:
+  notification_db_data:
   rabbitmq_data:

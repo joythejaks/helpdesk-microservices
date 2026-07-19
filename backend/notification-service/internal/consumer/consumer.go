@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"notification-service/internal/delivery/ws"
+	"notification-service/internal/usecase"
 
 	amqp091 "github.com/rabbitmq/amqp091-go"
 )
@@ -25,10 +26,14 @@ func IsConnected() bool {
 	return connected.Load()
 }
 
-func StartConsumer(url string) {
+// StartConsumer begins consuming ticket events. notifier persists any
+// event with a concrete TargetUserID (role broadcasts stay ephemeral —
+// see backend/BACKLOG.md for why) before it's pushed over WebSocket, so a
+// notification survives even if nobody's connected to receive it live.
+func StartConsumer(url string, notifier *usecase.NotificationUsecase) {
 	go func() {
 		for {
-			if err := consume(url); err != nil {
+			if err := consume(url, notifier); err != nil {
 				log.Println("RabbitMQ consumer disconnected:", err)
 			}
 
@@ -38,7 +43,7 @@ func StartConsumer(url string) {
 	}()
 }
 
-func consume(url string) error {
+func consume(url string, notifier *usecase.NotificationUsecase) error {
 	conn, err := dialWithRetry(url, 15, startupRetryDelay)
 	if err != nil {
 		return err
@@ -101,6 +106,9 @@ func consume(url string) error {
 
 			switch {
 			case evt.TargetUserID != nil:
+				if err := notifier.Create(*evt.TargetUserID, d.Body); err != nil {
+					log.Println("⚠️ failed to persist notification:", err)
+				}
 				ws.SendToUser(*evt.TargetUserID, raw)
 			case len(evt.TargetRoles) > 0:
 				ws.SendToRoles(evt.TargetRoles, raw)

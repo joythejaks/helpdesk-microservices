@@ -5,13 +5,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"notification-service/internal/consumer"
+	delivery "notification-service/internal/delivery/http"
 	"notification-service/internal/delivery/ws"
+	"notification-service/internal/domain"
+	"notification-service/internal/repository"
+	"notification-service/internal/usecase"
 	"notification-service/pkg/config"
 	"notification-service/pkg/logger"
+	"notification-service/pkg/response"
 
 	"github.com/joho/godotenv"
 )
@@ -31,10 +37,26 @@ func main() {
 	port := config.AppConfig.AppPort
 	rabbitURL := config.AppConfig.RabbitMQURL
 
+	// DB
+	db, err := repository.NewPostgresDB()
+	if err != nil {
+		logger.Log.Fatal("failed to connect DB:", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Log.Fatal("failed to get database instance:", err)
+	}
+	db.AutoMigrate(&domain.Notification{})
+
+	notificationRepo := repository.NewNotificationRepository(db)
+	notificationUsecase := usecase.NewNotificationUsecase(notificationRepo)
+	notificationHandler := delivery.NewNotificationHandler(notificationUsecase)
+
 	ws.Init([]byte(config.AppConfig.JWTSecret), config.AppConfig.AllowedOrigins, config.AppConfig.MaxWSConnections)
+	delivery.Init([]byte(config.AppConfig.JWTSecret))
 
 	// start consumer (non-blocking, auto-reconnect)
-	consumer.StartConsumer(rabbitURL)
+	consumer.StartConsumer(rabbitURL, notificationUsecase)
 
 	// custom mux — hindari register ke DefaultServeMux global
 	mux := http.NewServeMux()
@@ -43,13 +65,29 @@ func main() {
 	mux.HandleFunc("/ws", ws.RateLimit(wsLimiter, ws.HandleConnections))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		if !consumer.IsConnected() {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if !consumer.IsConnected() || sqlDB.PingContext(ctx) != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("rabbitmq disconnected"))
+			w.Write([]byte("dependency disconnected"))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
+	})
+
+	// REST notifications API — self-authenticated (Authorization: Bearer),
+	// same trust model as /ws since this service was never put behind the
+	// gateway (the reverse proxy doesn't handle WS upgrades).
+	mux.HandleFunc("GET /notifications", notificationHandler.List)
+	mux.HandleFunc("PATCH /notifications/read-all", notificationHandler.MarkAllRead)
+	mux.HandleFunc("PATCH /notifications/{id}/read", func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseUint(r.PathValue("id"), 10, 0)
+		if err != nil {
+			response.Error(w, http.StatusBadRequest, "invalid notification id", "BAD_REQUEST")
+			return
+		}
+		notificationHandler.MarkRead(w, r, uint(id))
 	})
 
 	go ws.HandleMessages()
@@ -82,6 +120,7 @@ func main() {
 		logger.Log.Fatal("server forced to shutdown: ", err)
 	}
 
+	sqlDB.Close()
 	logger.Log.Info("server exited")
 }
 
