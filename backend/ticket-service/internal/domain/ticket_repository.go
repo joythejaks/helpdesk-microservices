@@ -10,6 +10,11 @@ type TicketFilter struct {
 	Department string
 	From       *time.Time
 	To         *time.Time
+	// Search matches (case-insensitively) against Title or Description.
+	Search string
+	// Overdue, when true, narrows to tickets past DueAt that aren't
+	// resolved/closed yet.
+	Overdue bool
 }
 
 type TicketRepository interface {

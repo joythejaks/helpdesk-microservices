@@ -14,7 +14,9 @@ type Event struct {
 }
 
 const (
-	EventTicketCreated       = "ticket_created"
-	EventTicketAssigned      = "ticket_assigned"
-	EventTicketStatusChanged = "ticket_status_changed"
+	EventTicketCreated         = "ticket_created"
+	EventTicketAssigned        = "ticket_assigned"
+	EventTicketStatusChanged   = "ticket_status_changed"
+	EventTicketCommented       = "ticket_commented"
+	EventTicketAttachmentAdded = "ticket_attachment_added"
 )

@@ -31,6 +31,22 @@ var allowedTransitions = map[string][]string{
 	domain.StatusResolved:   {domain.StatusClosed, domain.StatusInProgress},
 }
 
+// slaDurations maps priority to how long a ticket has before it's
+// considered overdue, counted from creation. Falls back to the "Medium"
+// duration for an unrecognized priority.
+var slaDurations = map[string]time.Duration{
+	"High":   4 * time.Hour,
+	"Medium": 24 * time.Hour,
+	"Low":    72 * time.Hour,
+}
+
+func slaDuration(priority string) time.Duration {
+	if d, ok := slaDurations[priority]; ok {
+		return d
+	}
+	return slaDurations["Medium"]
+}
+
 type TicketUsecase struct {
 	repo domain.TicketRepository
 }
@@ -40,6 +56,8 @@ func NewTicketUsecase(r domain.TicketRepository) *TicketUsecase {
 }
 
 func (u *TicketUsecase) Create(ticket *domain.Ticket) error {
+	due := time.Now().Add(slaDuration(ticket.Priority))
+	ticket.DueAt = &due
 	return u.repo.Create(ticket)
 }
 

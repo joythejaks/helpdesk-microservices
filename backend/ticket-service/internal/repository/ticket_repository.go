@@ -32,6 +32,14 @@ func applyFilter(q *gorm.DB, f domain.TicketFilter) *gorm.DB {
 	if f.To != nil {
 		q = q.Where("created_at <= ?", *f.To)
 	}
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
+		q = q.Where("title ILIKE ? OR description ILIKE ?", like, like)
+	}
+	if f.Overdue {
+		q = q.Where("due_at IS NOT NULL AND due_at < ? AND status NOT IN ?",
+			time.Now(), []string{domain.StatusResolved, domain.StatusClosed})
+	}
 	return q
 }
 

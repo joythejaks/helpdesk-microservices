@@ -58,8 +58,9 @@ func NewTicketHandler(u *usecase.TicketUsecase, p *messaging.Publisher) *TicketH
 
 // publishEvent marshals and publishes a notification event. Best-effort —
 // a notification failure should never fail the underlying HTTP request.
-func (h *TicketHandler) publishEvent(event messaging.Event) {
-	if h.publisher == nil {
+// Shared by TicketHandler and CommentHandler.
+func publishEvent(publisher *messaging.Publisher, event messaging.Event) {
+	if publisher == nil {
 		return
 	}
 	payload, err := json.Marshal(event)
@@ -67,7 +68,7 @@ func (h *TicketHandler) publishEvent(event messaging.Event) {
 		logger.Log.WithError(err).Error("failed to marshal notification event")
 		return
 	}
-	if err := h.publisher.Publish(string(payload)); err != nil {
+	if err := publisher.Publish(string(payload)); err != nil {
 		logger.Log.WithError(err).Error("failed to publish notification event")
 	}
 }
@@ -117,7 +118,7 @@ func (h *TicketHandler) Create(c *gin.Context) {
 		return
 	}
 
-	h.publishEvent(messaging.Event{
+	publishEvent(h.publisher, messaging.Event{
 		Type:        messaging.EventTicketCreated,
 		TicketID:    ticket.ID,
 		Title:       ticket.Title,
@@ -164,6 +165,8 @@ func (h *TicketHandler) GetTickets(c *gin.Context) {
 		Status:     c.Query("status"),
 		Priority:   c.Query("priority"),
 		Department: c.Query("department"),
+		Search:     c.Query("search"),
+		Overdue:    c.Query("overdue") == "true",
 	}
 	if v := c.Query("from"); v != "" {
 		if parsed, err := time.Parse("2006-01-02", v); err == nil {
@@ -221,7 +224,7 @@ func (h *TicketHandler) Assign(c *gin.Context) {
 		return
 	}
 
-	h.publishEvent(messaging.Event{
+	publishEvent(h.publisher, messaging.Event{
 		Type:         messaging.EventTicketAssigned,
 		TicketID:     id,
 		Status:       domain.StatusAssigned,
@@ -269,7 +272,7 @@ func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	creatorID := ticket.UserID
-	h.publishEvent(messaging.Event{
+	publishEvent(h.publisher, messaging.Event{
 		Type:         messaging.EventTicketStatusChanged,
 		TicketID:     id,
 		Status:       req.Status,

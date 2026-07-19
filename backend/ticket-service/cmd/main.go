@@ -46,7 +46,7 @@ func main() {
 		logger.Log.Fatal("failed to get database instance:", err)
 	}
 
-	db.AutoMigrate(&domain.Ticket{}, &domain.TicketStatusHistory{})
+	db.AutoMigrate(&domain.Ticket{}, &domain.TicketStatusHistory{}, &domain.TicketComment{}, &domain.TicketAttachment{})
 
 	// repo & usecase
 	repo := repository.NewTicketRepository(db)
@@ -54,6 +54,12 @@ func main() {
 
 	reportRepo := repository.NewReportRepository(db)
 	reportUsecase := usecase.NewReportUsecase(reportRepo)
+
+	commentRepo := repository.NewCommentRepository(db)
+	commentUsecase := usecase.NewCommentUsecase(commentRepo, ticketUsecase)
+
+	attachmentRepo := repository.NewAttachmentRepository(db)
+	attachmentUsecase := usecase.NewAttachmentUsecase(attachmentRepo, ticketUsecase)
 
 	// RabbitMQ
 	publisher, err := messaging.NewPublisher(rabbitURL)
@@ -63,6 +69,8 @@ func main() {
 
 	handler := delivery.NewTicketHandler(ticketUsecase, publisher)
 	reportHandler := delivery.NewReportHandler(reportUsecase)
+	commentHandler := delivery.NewCommentHandler(commentUsecase, publisher)
+	attachmentHandler := delivery.NewAttachmentHandler(attachmentUsecase, publisher)
 
 	r := gin.Default()
 
@@ -93,6 +101,11 @@ func main() {
 		internalOnly.GET("/tickets/:id/history", handler.GetHistory)
 		internalOnly.PATCH("/tickets/:id/assign", handler.Assign)
 		internalOnly.PATCH("/tickets/:id/status", handler.UpdateStatus)
+		internalOnly.POST("/tickets/:id/comments", commentHandler.Create)
+		internalOnly.GET("/tickets/:id/comments", commentHandler.List)
+		internalOnly.POST("/tickets/:id/attachments", attachmentHandler.Create)
+		internalOnly.GET("/tickets/:id/attachments", attachmentHandler.List)
+		internalOnly.GET("/tickets/:id/attachments/:attachmentId", attachmentHandler.Download)
 
 		internalOnly.GET("/reports/summary", reportHandler.Summary)
 		internalOnly.GET("/reports/agents", reportHandler.AgentPerformance)

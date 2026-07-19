@@ -410,3 +410,35 @@ func TestGetTicketHistory_NonOwnerForbidden(t *testing.T) {
 		t.Fatalf("expected ErrForbidden for a non-owner, got %v", err)
 	}
 }
+
+func TestCreate_SetsDueAtByPriority(t *testing.T) {
+	cases := []struct {
+		priority string
+		want     time.Duration
+	}{
+		{"High", 4 * time.Hour},
+		{"Medium", 24 * time.Hour},
+		{"Low", 72 * time.Hour},
+		{"Unknown", 24 * time.Hour}, // falls back to Medium
+	}
+
+	for _, tc := range cases {
+		repo := newFakeTicketRepo()
+		uc := usecase.NewTicketUsecase(repo)
+
+		ticket := &domain.Ticket{Title: "test", Priority: tc.priority}
+		before := time.Now()
+		if err := uc.Create(ticket); err != nil {
+			t.Fatalf("[%s] expected no error, got %v", tc.priority, err)
+		}
+
+		if ticket.DueAt == nil {
+			t.Fatalf("[%s] expected DueAt to be set", tc.priority)
+		}
+		got := ticket.DueAt.Sub(before)
+		// allow a little slack for test execution time
+		if got < tc.want-time.Second || got > tc.want+time.Second {
+			t.Fatalf("[%s] expected DueAt ~%v from now, got %v", tc.priority, tc.want, got)
+		}
+	}
+}
