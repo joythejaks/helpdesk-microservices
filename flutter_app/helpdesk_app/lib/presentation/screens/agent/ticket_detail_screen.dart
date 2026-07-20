@@ -1,16 +1,12 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/services/file_saver/file_saver.dart';
 import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/data/admin_repository.dart';
 import 'package:helpdesk_app/data/ticket_repository.dart';
 import 'package:helpdesk_app/models/app_user.dart';
 import 'package:helpdesk_app/models/ticket.dart';
-import 'package:helpdesk_app/models/ticket_attachment.dart';
 import 'package:helpdesk_app/models/ticket_comment.dart';
-import 'package:helpdesk_app/presentation/bloc/attachment/attachment_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/comment/comment_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
@@ -33,6 +29,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   final _commentController = TextEditingController();
   List<AppUser> _agents = const [];
   int? _selectedAgentId;
+  int? _attachmentCount;
 
   @override
   void initState() {
@@ -40,6 +37,19 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated && authState.user.role.toLowerCase() == 'admin') {
       _loadAgents();
+    }
+    _loadAttachmentCount();
+  }
+
+  Future<void> _loadAttachmentCount() async {
+    try {
+      final attachments = await context.read<TicketRepository>().getAttachments(
+        widget.ticket.id,
+      );
+      if (!mounted) return;
+      setState(() => _attachmentCount = attachments.length);
+    } catch (_) {
+      // Best-effort — the summary row just shows a dash on failure.
     }
   }
 
@@ -61,19 +71,10 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => CommentBloc(
-            ticketRepository: context.read<TicketRepository>(),
-          )..add(CommentsRequested(widget.ticket.id)),
-        ),
-        BlocProvider(
-          create: (context) => AttachmentBloc(
-            ticketRepository: context.read<TicketRepository>(),
-          )..add(AttachmentsRequested(widget.ticket.id)),
-        ),
-      ],
+    return BlocProvider(
+      create: (context) => CommentBloc(
+        ticketRepository: context.read<TicketRepository>(),
+      )..add(CommentsRequested(widget.ticket.id)),
       child: Scaffold(
         backgroundColor: HelpdeskTheme.surface,
         body: SafeArea(
@@ -117,18 +118,24 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                         const SizedBox(height: 8),
                         SurfaceCard(child: _buildDetails(ticket)),
                         const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Text('Lampiran', style: Theme.of(context).textTheme.titleSmall),
-                            const Spacer(),
-                            TextButton.icon(
-                              onPressed: () => _pickAndUpload(context, ticket.id),
-                              icon: const Icon(Icons.attach_file, size: 18),
-                              label: const Text('Tambah'),
+                        Text('Lampiran', style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 8),
+                        SurfaceCard(
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.attach_file, color: HelpdeskTheme.primary),
+                            title: Text(
+                              _attachmentCount == null
+                                  ? 'Memuat lampiran...'
+                                  : '$_attachmentCount lampiran',
                             ),
-                          ],
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.of(context).pushNamed(
+                              '/ticket-attachments',
+                              arguments: ticket.id,
+                            ),
+                          ),
                         ),
-                        ..._buildAttachments(context, ticket),
                         const SizedBox(height: 8),
                         if (currentUser != null) ..._buildActions(context, ticket, currentUser),
                         const SizedBox(height: 8),
@@ -301,112 +308,6 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       entries.add(TimelineItem(title: 'Tiket ditutup', time: _formatDateTime(ticket.closedAt!)));
     }
     return entries;
-  }
-
-  List<Widget> _buildAttachments(BuildContext context, Ticket ticket) {
-    return [
-      BlocBuilder<AttachmentBloc, AttachmentState>(
-        builder: (context, state) {
-          final attachments = switch (state) {
-            AttachmentLoaded(:final attachments) => attachments,
-            AttachmentUploading(:final attachments) => attachments,
-            AttachmentFailure(:final attachments) => attachments,
-            _ => <TicketAttachment>[],
-          };
-
-          if (state is AttachmentLoading) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (state is AttachmentFailure && attachments.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(state.message),
-            );
-          }
-          if (attachments.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Belum ada lampiran.'),
-            );
-          }
-          return Column(
-            children: [
-              ...attachments.map(
-                (a) => _buildAttachmentTile(context, ticket.id, a),
-              ),
-              if (state is AttachmentUploading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: LinearProgressIndicator(),
-                ),
-            ],
-          );
-        },
-      ),
-    ];
-  }
-
-  Widget _buildAttachmentTile(
-    BuildContext context,
-    String ticketId,
-    TicketAttachment attachment,
-  ) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(_iconForContentType(attachment.contentType), color: HelpdeskTheme.primary),
-      title: Text(attachment.filename, overflow: TextOverflow.ellipsis),
-      subtitle: Text(_formatFileSize(attachment.size)),
-      trailing: const Icon(Icons.download_outlined),
-      onTap: () => _downloadAttachment(context, ticketId, attachment),
-    );
-  }
-
-  IconData _iconForContentType(String contentType) {
-    if (contentType.startsWith('image/')) return Icons.image_outlined;
-    if (contentType == 'application/pdf') return Icons.picture_as_pdf_outlined;
-    return Icons.insert_drive_file_outlined;
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  Future<void> _pickAndUpload(BuildContext context, String ticketId) async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
-    final file = result?.files.single;
-    if (file == null || file.bytes == null) return;
-    if (!context.mounted) return;
-    context.read<AttachmentBloc>().add(
-      AttachmentUploadRequested(ticketId, file.name, file.bytes!),
-    );
-  }
-
-  Future<void> _downloadAttachment(
-    BuildContext context,
-    String ticketId,
-    TicketAttachment attachment,
-  ) async {
-    try {
-      final result = await context.read<TicketRepository>().downloadAttachment(
-        ticketId: ticketId,
-        attachmentId: '${attachment.id}',
-      );
-      final saved = await saveBytes(attachment.filename, result.bytes);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tersimpan: $saved')),
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengunduh: $error')),
-      );
-    }
   }
 
   List<Widget> _buildComments(BuildContext context) {

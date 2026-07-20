@@ -18,6 +18,7 @@ import 'presentation/bloc/notification/notification_bloc.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
 import 'presentation/navigation/role_router.dart';
 import 'presentation/screens/agent/ticket_detail_screen.dart';
+import 'presentation/screens/attachment/attachments_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
@@ -119,6 +120,11 @@ class HelpdeskApp extends StatelessWidget {
                 case '/home':
                   final user = settings.arguments as AppUser;
                   return MaterialPageRoute(builder: (_) => homeForRole(user));
+                case '/ticket-attachments':
+                  final ticketId = settings.arguments as String;
+                  return MaterialPageRoute(
+                    builder: (_) => AttachmentsScreen(ticketId: ticketId),
+                  );
               }
               return null;
             },

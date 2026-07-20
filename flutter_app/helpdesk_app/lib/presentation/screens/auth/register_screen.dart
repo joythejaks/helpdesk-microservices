@@ -19,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _departmentController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -27,6 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _departmentController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -102,6 +104,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
                   if (value.length < 8) return 'Password minimal 8 karakter';
                   if (value.length > 72) return 'Password maksimal 72 karakter';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              AppTextField(
+                controller: _confirmPasswordController,
+                label: 'Konfirmasi password',
+                icon: Icons.lock_outline,
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Konfirmasi password tidak boleh kosong';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Password tidak cocok';
+                  }
                   return null;
                 },
               ),
