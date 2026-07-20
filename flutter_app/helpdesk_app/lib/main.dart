@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/network/api_client.dart';
+import 'core/network/notification_api_client.dart';
 import 'core/services/env_config.dart';
 import 'core/services/websocket_service.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/helpdesk_theme.dart';
 import 'data/admin_repository.dart';
 import 'data/auth_repository.dart';
+import 'data/notification_repository.dart';
 import 'data/ticket_repository.dart';
 import 'models/app_user.dart';
 import 'models/ticket.dart';
@@ -19,6 +21,7 @@ import 'presentation/screens/agent/ticket_detail_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
+import 'presentation/screens/notification/notifications_screen.dart';
 
 void main() {
   runApp(const HelpdeskApp());
@@ -32,12 +35,20 @@ class HelpdeskApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider(create: (_) => ApiClient()),
+        RepositoryProvider(create: (_) => NotificationApiClient()),
         RepositoryProvider(create: (_) => TokenStorage()),
         RepositoryProvider(create: (_) => WebSocketService(url: EnvConfig.wsUrl)),
         RepositoryProvider(
           create: (context) => AuthRepository(
             apiClient: context.read<ApiClient>(),
             tokenStorage: context.read<TokenStorage>(),
+          ),
+        ),
+        RepositoryProvider(
+          create: (context) => NotificationRepository(
+            apiClient: context.read<NotificationApiClient>(),
+            tokenStorage: context.read<TokenStorage>(),
+            onUnauthorized: context.read<AuthRepository>().refreshTokens,
           ),
         ),
         RepositoryProvider(
@@ -96,6 +107,7 @@ class HelpdeskApp extends StatelessWidget {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/register': (context) => const RegisterScreen(),
+              '/notifications': (context) => const NotificationsScreen(),
             },
             onGenerateRoute: (settings) {
               switch (settings.name) {

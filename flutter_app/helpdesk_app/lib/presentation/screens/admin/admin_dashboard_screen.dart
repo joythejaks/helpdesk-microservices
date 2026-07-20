@@ -31,6 +31,7 @@ class AdminDashboardScreen extends StatelessWidget {
                   onTrailingTap: () {
                     context.read<NotificationBloc>().add(const NotificationCleared());
                     context.read<AdminReportsBloc>().add(const AdminReportsRequested());
+                    Navigator.of(context).pushNamed('/notifications');
                   },
                 ),
               ),

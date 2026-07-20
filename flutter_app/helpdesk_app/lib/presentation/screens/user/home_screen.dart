@@ -56,8 +56,10 @@ class HomeScreen extends StatelessWidget {
                   subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
                   trailing: Icons.notifications_none,
                   trailingBadgeCount: notifState.unreadCount,
-                  onTrailingTap: () =>
-                      context.read<NotificationBloc>().add(const NotificationCleared()),
+                  onTrailingTap: () {
+                    context.read<NotificationBloc>().add(const NotificationCleared());
+                    Navigator.of(context).pushNamed('/notifications');
+                  },
                 ),
               ),
               const SizedBox(height: 26),

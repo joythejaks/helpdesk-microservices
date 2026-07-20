@@ -33,8 +33,10 @@ class AgentDashboardScreen extends StatelessWidget {
                 subtitle: 'Ringkasan performa dan antrean kerja',
                 trailing: Icons.notifications_outlined,
                 trailingBadgeCount: notifState.unreadCount,
-                onTrailingTap: () =>
-                    context.read<NotificationBloc>().add(const NotificationCleared()),
+                onTrailingTap: () {
+                  context.read<NotificationBloc>().add(const NotificationCleared());
+                  Navigator.of(context).pushNamed('/notifications');
+                },
               ),
             ),
             const SizedBox(height: 26),
