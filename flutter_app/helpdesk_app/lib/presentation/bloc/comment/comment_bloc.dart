@@ -14,10 +14,11 @@ class CommentsRequested extends CommentEvent {
 }
 
 class CommentSubmitted extends CommentEvent {
-  const CommentSubmitted(this.ticketId, this.body);
+  const CommentSubmitted(this.ticketId, this.body, {this.isInternal = false});
 
   final String ticketId;
   final String body;
+  final bool isInternal;
 }
 
 sealed class CommentState {
@@ -88,6 +89,7 @@ class CommentBloc extends Bloc<CommentEvent, CommentState> {
       final comment = await _ticketRepository.addComment(
         ticketId: event.ticketId,
         body: event.body,
+        isInternal: event.isInternal,
       );
       emit(CommentLoaded([...previous, comment]));
     } catch (error) {

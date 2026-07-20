@@ -21,7 +21,8 @@ func NewCommentHandler(u *usecase.CommentUsecase, p *messaging.Publisher) *Comme
 }
 
 type CreateCommentRequest struct {
-	Body string `json:"body" binding:"required,min=1,max=4000"`
+	Body       string `json:"body" binding:"required,min=1,max=4000"`
+	IsInternal bool   `json:"is_internal"`
 }
 
 func (h *CommentHandler) Create(c *gin.Context) {
@@ -42,7 +43,7 @@ func (h *CommentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	comment, ticket, err := h.usecase.Create(id, userID, role, req.Body)
+	comment, ticket, err := h.usecase.Create(id, userID, role, req.Body, req.IsInternal)
 	if err != nil {
 		if errors.Is(err, usecase.ErrForbidden) {
 			response.Error(c, 404, "ticket not found", "NOT_FOUND")
@@ -52,14 +53,18 @@ func (h *CommentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	targetUserID, targetRoles := ticketActivityTarget(ticket, role)
-	publishEvent(h.publisher, messaging.Event{
-		Type:         messaging.EventTicketCommented,
-		TicketID:     id,
-		Title:        req.Body,
-		TargetUserID: targetUserID,
-		TargetRoles:  targetRoles,
-	})
+	// Internal notes are staff-only — never notify the ticket owner (or
+	// anyone) about them, since they can't see the comment anyway.
+	if !comment.IsInternal {
+		targetUserID, targetRoles := ticketActivityTarget(ticket, role)
+		publishEvent(h.publisher, messaging.Event{
+			Type:         messaging.EventTicketCommented,
+			TicketID:     id,
+			Title:        req.Body,
+			TargetUserID: targetUserID,
+			TargetRoles:  targetRoles,
+		})
+	}
 
 	response.Success(c, comment)
 }

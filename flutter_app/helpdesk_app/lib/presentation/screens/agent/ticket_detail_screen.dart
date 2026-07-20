@@ -30,6 +30,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   List<AppUser> _agents = const [];
   int? _selectedAgentId;
   int? _attachmentCount;
+  bool _isInternal = false;
 
   @override
   void initState() {
@@ -145,11 +146,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                         const SizedBox(height: 24),
                         Text('Percakapan & Aktivitas', style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 16),
-                        ..._buildComments(context),
+                        ..._buildComments(context, currentUser),
                       ],
                     ),
                   ),
-                  _buildCommentInputArea(context),
+                  _buildCommentInputArea(context, currentUser),
                 ],
               );
             },
@@ -310,7 +311,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     return entries;
   }
 
-  List<Widget> _buildComments(BuildContext context) {
+  List<Widget> _buildComments(BuildContext context, AppUser? currentUser) {
+    final isStaff = currentUser != null &&
+        (currentUser.role.toLowerCase() == 'admin' || currentUser.role.toLowerCase() == 'agent');
     return [
       BlocBuilder<CommentBloc, CommentState>(
         builder: (context, state) {
@@ -333,6 +336,10 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               child: Text(state.message),
             );
           }
+          // Staff-only notes are already filtered server-side for a plain
+          // user, but a "user" caller viewing this list will never have
+          // isInternal comments to begin with — isStaff just controls
+          // whether we bother showing the "Internal" badge at all.
           if (comments.isEmpty) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -346,6 +353,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     '${c.authorRole[0].toUpperCase()}${c.authorRole.substring(1)} #${c.authorId}',
                     c.body,
                     _formatDateTime(c.createdAt),
+                    isInternal: isStaff && c.isInternal,
                   ),
                 )
                 .toList(),
@@ -355,9 +363,23 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     ];
   }
 
-  Widget _buildCommentTile(String user, String msg, String time, {bool isSystem = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _buildCommentTile(
+    String user,
+    String msg,
+    String time, {
+    bool isSystem = false,
+    bool isInternal = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: isInternal ? const EdgeInsets.all(10) : EdgeInsets.zero,
+      decoration: isInternal
+          ? BoxDecoration(
+              color: const Color(0xFFFFF7E0),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFFE0A3)),
+            )
+          : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -373,6 +395,20 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 Row(
                   children: [
                     Text(user, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    if (isInternal) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB8860B),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Internal',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     Text(time, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
                   ],
@@ -387,32 +423,52 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     );
   }
 
-  Widget _buildCommentInputArea(BuildContext context) {
+  Widget _buildCommentInputArea(BuildContext context, AppUser? currentUser) {
+    final role = currentUser?.role.toLowerCase();
+    final isStaff = role == 'admin' || role == 'agent';
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       decoration: BoxDecoration(
         color: HelpdeskTheme.surface,
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 13), blurRadius: 10, offset: const Offset(0, -5))],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: AppTextField(
-              controller: _commentController,
-              label: 'Tulis balasan...',
-              icon: Icons.chat_bubble_outline,
+          if (isStaff)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  value: _isInternal,
+                  onChanged: (value) => setState(() => _isInternal = value ?? false),
+                ),
+                const Text('Catatan internal (staff only)', style: TextStyle(fontSize: 13)),
+              ],
             ),
-          ),
-          const SizedBox(width: 12),
-          BlocBuilder<CommentBloc, CommentState>(
-            builder: (context, state) {
-              final submitting = state is CommentSubmitting;
-              return IconButton.filled(
-                onPressed: submitting ? null : () => _submitComment(context),
-                icon: const Icon(Icons.send),
-                style: IconButton.styleFrom(backgroundColor: HelpdeskTheme.primary),
-              );
-            },
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  controller: _commentController,
+                  label: _isInternal ? 'Tulis catatan internal...' : 'Tulis balasan...',
+                  icon: _isInternal ? Icons.lock_outline : Icons.chat_bubble_outline,
+                ),
+              ),
+              const SizedBox(width: 12),
+              BlocBuilder<CommentBloc, CommentState>(
+                builder: (context, state) {
+                  final submitting = state is CommentSubmitting;
+                  return IconButton.filled(
+                    onPressed: submitting ? null : () => _submitComment(context),
+                    icon: const Icon(Icons.send),
+                    style: IconButton.styleFrom(
+                      backgroundColor: _isInternal ? const Color(0xFFB8860B) : HelpdeskTheme.primary,
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -422,7 +478,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   void _submitComment(BuildContext context) {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
-    context.read<CommentBloc>().add(CommentSubmitted(widget.ticket.id, text));
+    context.read<CommentBloc>().add(
+      CommentSubmitted(widget.ticket.id, text, isInternal: _isInternal),
+    );
     _commentController.clear();
   }
 

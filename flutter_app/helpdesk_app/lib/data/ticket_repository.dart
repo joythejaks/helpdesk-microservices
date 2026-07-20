@@ -104,12 +104,13 @@ class TicketRepository {
   Future<TicketComment> addComment({
     required String ticketId,
     required String body,
+    bool isInternal = false,
   }) async {
     final token = await _requireToken();
     final response = await _apiClient.post(
       '/tickets/$ticketId/comments',
       token: token,
-      body: {'body': body},
+      body: {'body': body, 'is_internal': isInternal},
     );
     return TicketComment.fromJson(response['data'] as Map<String, dynamic>);
   }
