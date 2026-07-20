@@ -7,10 +7,12 @@ import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
 import 'package:helpdesk_app/presentation/screens/agent/agent_dashboard_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
+import 'package:helpdesk_app/presentation/screens/profile/profile_screen.dart';
 
 const _navItems = [
   (Icons.dashboard_outlined, 'Dashboard'),
   (Icons.confirmation_number_outlined, 'Tickets'),
+  (Icons.person_outline, 'Profile'),
 ];
 
 /// Shell for agent (and, until a dedicated admin UI exists, admin) logins —
@@ -38,6 +40,7 @@ class _AgentShellState extends State<AgentShell> {
     final pages = [
       const AgentDashboardScreen(),
       TicketListScreen(onOpenTicket: _openTicket),
+      const ProfileScreen(),
     ];
 
     return AppFrame(

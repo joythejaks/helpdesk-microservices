@@ -9,11 +9,13 @@ import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
 import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
 import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
+import 'package:helpdesk_app/presentation/screens/profile/profile_screen.dart';
 
 const _navItems = [
   (Icons.home_outlined, 'Home'),
   (Icons.confirmation_number_outlined, 'Tickets'),
   (Icons.add_circle_outline, 'Create'),
+  (Icons.person_outline, 'Profile'),
 ];
 
 class DashboardShell extends StatefulWidget {
@@ -41,20 +43,21 @@ class _DashboardShellState extends State<DashboardShell> {
       ),
       TicketListScreen(onOpenTicket: _openTicket),
       const CreateTicketScreen(),
+      const ProfileScreen(),
     ];
 
     return AppFrame(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: pages[index],
-        floatingActionButton: index == 2
-            ? null
-            : FloatingActionButton(
+        floatingActionButton: (index == 0 || index == 1)
+            ? FloatingActionButton(
                 onPressed: () => setState(() => index = 2),
                 backgroundColor: HelpdeskTheme.primary,
                 foregroundColor: Colors.white,
                 child: const Icon(Icons.add),
-              ),
+              )
+            : null,
         bottomNavigationBar: GlassNavBar(
           index: index,
           onChanged: (value) => setState(() => index = value),

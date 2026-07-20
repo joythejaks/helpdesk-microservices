@@ -7,6 +7,7 @@ import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/screens/admin/admin_dashboard_screen.dart';
 import 'package:helpdesk_app/presentation/screens/admin/staff_provisioning_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
+import 'package:helpdesk_app/presentation/screens/profile/profile_screen.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
 
@@ -14,6 +15,7 @@ const _navItems = [
   (Icons.dashboard_outlined, 'Reports'),
   (Icons.confirmation_number_outlined, 'Tickets'),
   (Icons.person_add_alt_outlined, 'Staff'),
+  (Icons.person_outline, 'Profile'),
 ];
 
 /// Shell for admin logins — reports/tickets/staff-provisioning tabs. Reuses
@@ -43,6 +45,7 @@ class _AdminShellState extends State<AdminShell> {
       const AdminDashboardScreen(),
       TicketListScreen(onOpenTicket: _openTicket),
       const StaffProvisioningScreen(),
+      const ProfileScreen(),
     ];
 
     return AppFrame(

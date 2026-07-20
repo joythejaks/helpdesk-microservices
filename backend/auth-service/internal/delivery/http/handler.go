@@ -70,8 +70,10 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=72"`
+	Name       string `json:"name" binding:"required,min=1,max=100"`
+	Email      string `json:"email" binding:"required,email"`
+	Department string `json:"department" binding:"required,max=100"`
+	Password   string `json:"password" binding:"required,min=8,max=72"`
 }
 
 //
@@ -100,7 +102,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Role selalu "user" untuk registrasi publik — jangan pernah percaya role
 	// dari client, itu jalan pintas privilege escalation.
-	err := h.usecase.Register(req.Email, req.Password, "user")
+	err := h.usecase.Register(req.Name, req.Email, req.Password, req.Department, "user")
 	if err != nil {
 		if errors.Is(err, usecase.ErrEmailTaken) {
 			response.Error(c, http.StatusConflict, "email already registered", "conflict")
@@ -313,9 +315,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 type CreateStaffRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=72"`
-	Role     string `json:"role" binding:"required"`
+	Name       string `json:"name" binding:"max=100"`
+	Email      string `json:"email" binding:"required,email"`
+	Department string `json:"department" binding:"max=100"`
+	Password   string `json:"password" binding:"required,min=8,max=72"`
+	Role       string `json:"role" binding:"required"`
 }
 
 // CreateStaff lets an admin provision an agent or admin account. There is
@@ -333,7 +337,7 @@ func (h *AuthHandler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	err := h.usecase.Register(req.Email, req.Password, req.Role)
+	err := h.usecase.Register(req.Name, req.Email, req.Password, req.Department, req.Role)
 	if err != nil {
 		if errors.Is(err, usecase.ErrEmailTaken) {
 			response.Error(c, http.StatusConflict, "email already registered", "conflict")
@@ -361,13 +365,23 @@ func (h *AuthHandler) CreateStaff(c *gin.Context) {
 // UserResponse is the public shape of a user account — never includes the
 // password hash.
 type UserResponse struct {
-	ID    uint   `json:"id"`
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	ID           uint   `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Department   string `json:"department"`
+	Availability string `json:"availability"`
+	Role         string `json:"role"`
 }
 
 func toUserResponse(u *domain.User) UserResponse {
-	return UserResponse{ID: u.ID, Email: u.Email, Role: u.Role}
+	return UserResponse{
+		ID:           u.ID,
+		Name:         u.Name,
+		Email:        u.Email,
+		Department:   u.Department,
+		Availability: u.Availability,
+		Role:         u.Role,
+	}
 }
 
 // Me returns the currently authenticated caller's own account — lets the
@@ -390,6 +404,127 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	user, err := h.usecase.GetByID(uint(userID))
 	if err != nil {
 		response.Error(c, 404, "user not found", "not_found")
+		return
+	}
+
+	response.Success(c, toUserResponse(user))
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=72"`
+}
+
+// ChangePassword lets the authenticated caller rotate their own password —
+// self-service only, acts on the ID from X-User-ID, never a body-supplied ID.
+// @Summary Ganti password sendiri
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ChangePasswordRequest true "Password lama & baru"
+// @Success 200 {object} response.Response
+// @Failure 401 {object} response.Response "unauthorized or wrong password"
+// @Router /change-password [post]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 0)
+	if userIDStr == "" || err != nil {
+		response.Error(c, 401, "unauthorized", "unauthorized")
+		return
+	}
+
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, 400, "invalid input", "bad_request")
+		return
+	}
+
+	if err := h.usecase.ChangePassword(uint(userID), req.OldPassword, req.NewPassword); err != nil {
+		if errors.Is(err, usecase.ErrWrongPassword) {
+			response.Error(c, 401, "wrong password", "unauthorized")
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "failed to change password", "internal_error")
+		return
+	}
+
+	response.Success(c, "password changed")
+}
+
+type UpdateProfileRequest struct {
+	Name       string `json:"name" binding:"required,min=1,max=100"`
+	Department string `json:"department" binding:"max=100"`
+}
+
+// UpdateProfile lets the authenticated caller edit their own name/department.
+// @Summary Ubah profil sendiri
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateProfileRequest true "Nama & departemen baru"
+// @Success 200 {object} response.Response
+// @Router /me [patch]
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 0)
+	if userIDStr == "" || err != nil {
+		response.Error(c, 401, "unauthorized", "unauthorized")
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, 400, "invalid input", "bad_request")
+		return
+	}
+
+	user, err := h.usecase.UpdateProfile(uint(userID), req.Name, req.Department)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to update profile", "internal_error")
+		return
+	}
+
+	response.Success(c, toUserResponse(user))
+}
+
+type UpdateAvailabilityRequest struct {
+	Availability string `json:"availability" binding:"required"`
+}
+
+// UpdateAvailability lets the authenticated caller set their own presence
+// status ("available" | "busy" | "offline").
+// @Summary Ubah status ketersediaan sendiri
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateAvailabilityRequest true "Status baru"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.Response "invalid availability value"
+// @Router /me/availability [patch]
+func (h *AuthHandler) UpdateAvailability(c *gin.Context) {
+	userIDStr := c.GetHeader("X-User-ID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 0)
+	if userIDStr == "" || err != nil {
+		response.Error(c, 401, "unauthorized", "unauthorized")
+		return
+	}
+
+	var req UpdateAvailabilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, 400, "invalid input", "bad_request")
+		return
+	}
+
+	user, err := h.usecase.UpdateAvailability(uint(userID), req.Availability)
+	if err != nil {
+		if errors.Is(err, usecase.ErrInvalidAvailability) {
+			response.Error(c, 400, "invalid availability value", "bad_request")
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "failed to update availability", "internal_error")
 		return
 	}
 
@@ -446,8 +581,11 @@ func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLi
 		// Logout memerlukan user ID dari header yang diisi oleh Gateway
 		internalOnly.POST("/logout", h.Logout)
 
-		// Siapa pun yang sudah login boleh tanya profilnya sendiri
+		// Siapa pun yang sudah login boleh tanya/ubah profilnya sendiri
 		internalOnly.GET("/me", h.Me)
+		internalOnly.PATCH("/me", h.UpdateProfile)
+		internalOnly.PATCH("/me/availability", h.UpdateAvailability)
+		internalOnly.POST("/change-password", h.ChangePassword)
 
 		// Admin-only staff provisioning + directory
 		admin := internalOnly.Group("/admin")

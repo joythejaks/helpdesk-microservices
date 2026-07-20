@@ -18,6 +18,10 @@ func (r *userRepository) Create(user *domain.User) error {
 	return r.db.Create(user).Error
 }
 
+func (r *userRepository) Update(user *domain.User) error {
+	return r.db.Save(user).Error
+}
+
 func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	var user domain.User
 	err := r.db.Where("email = ?", email).First(&user).Error

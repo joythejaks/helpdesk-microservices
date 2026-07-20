@@ -85,13 +85,19 @@ class AuthRepository {
   }
 
   Future<void> register({
+    required String name,
     required String email,
     required String password,
-    String role = 'user',
+    required String department,
   }) async {
     await _apiClient.post(
       '/auth/register',
-      body: {'email': email, 'password': password, 'role': role},
+      body: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'department': department,
+      },
     );
   }
 
@@ -106,5 +112,48 @@ class AuthRepository {
       }
     }
     await _tokenStorage.clear();
+  }
+
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final token = await _requireToken();
+    await _apiClient.post(
+      '/auth/change-password',
+      token: token,
+      body: {'old_password': oldPassword, 'new_password': newPassword},
+    );
+  }
+
+  Future<AppUser> updateProfile({
+    required String name,
+    required String department,
+  }) async {
+    final token = await _requireToken();
+    final response = await _apiClient.patch(
+      '/auth/me',
+      token: token,
+      body: {'name': name, 'department': department},
+    );
+    return AppUser.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  Future<AppUser> updateAvailability(String availability) async {
+    final token = await _requireToken();
+    final response = await _apiClient.patch(
+      '/auth/me/availability',
+      token: token,
+      body: {'availability': availability},
+    );
+    return AppUser.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  Future<String> _requireToken() async {
+    final token = await _tokenStorage.readAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiException('Sesi login tidak ditemukan', 'UNAUTHORIZED');
+    }
+    return token;
   }
 }

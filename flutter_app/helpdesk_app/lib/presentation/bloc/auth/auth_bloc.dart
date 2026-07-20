@@ -21,10 +21,17 @@ class AuthLoginSubmitted extends AuthEvent {
 }
 
 class AuthRegisterSubmitted extends AuthEvent {
-  const AuthRegisterSubmitted({required this.email, required this.password});
+  const AuthRegisterSubmitted({
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.department,
+  });
 
+  final String name;
   final String email;
   final String password;
+  final String department;
 }
 
 class AuthLogoutRequested extends AuthEvent {
@@ -122,8 +129,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       await _authRepository.register(
+        name: event.name,
         email: event.email,
         password: event.password,
+        department: event.department,
       );
       await _authRepository.login(email: event.email, password: event.password);
       final user = await _authRepository.getCurrentUser();

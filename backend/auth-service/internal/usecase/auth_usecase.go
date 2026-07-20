@@ -7,6 +7,14 @@ import (
 )
 
 var ErrEmailTaken = errors.New("email already registered")
+var ErrWrongPassword = errors.New("wrong password")
+var ErrInvalidAvailability = errors.New("invalid availability value")
+
+var validAvailability = map[string]bool{
+	"available": true,
+	"busy":      true,
+	"offline":   true,
+}
 
 type AuthUsecase struct {
 	repo domain.UserRepository
@@ -17,7 +25,7 @@ func NewAuthUsecase(r domain.UserRepository) *AuthUsecase {
 }
 
 // REGISTER
-func (u *AuthUsecase) Register(email, password, role string) error {
+func (u *AuthUsecase) Register(name, email, password, department, role string) error {
 	if existing, err := u.repo.FindByEmail(email); err == nil && existing != nil {
 		return ErrEmailTaken
 	}
@@ -28,9 +36,11 @@ func (u *AuthUsecase) Register(email, password, role string) error {
 	}
 
 	user := &domain.User{
-		Email:    email,
-		Password: hashed,
-		Role:     role,
+		Name:       name,
+		Email:      email,
+		Password:   hashed,
+		Department: department,
+		Role:       role,
 	}
 
 	return u.repo.Create(user)
@@ -60,4 +70,58 @@ func (u *AuthUsecase) GetByID(id uint) (*domain.User, error) {
 // admin-only agent-listing endpoint.
 func (u *AuthUsecase) ListByRole(role string) ([]domain.User, error) {
 	return u.repo.FindByRole(role)
+}
+
+// ChangePassword verifies the caller's current password before rotating it —
+// self-service only, the caller can never target another user's ID.
+func (u *AuthUsecase) ChangePassword(userID uint, oldPassword, newPassword string) error {
+	user, err := u.repo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	if err := bcrypt.Compare(user.Password, oldPassword); err != nil {
+		return ErrWrongPassword
+	}
+
+	hashed, err := bcrypt.Hash(newPassword)
+	if err != nil {
+		return err
+	}
+
+	user.Password = hashed
+	return u.repo.Update(user)
+}
+
+// UpdateProfile sets the caller's own display name/department.
+func (u *AuthUsecase) UpdateProfile(userID uint, name, department string) (*domain.User, error) {
+	user, err := u.repo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Name = name
+	user.Department = department
+	if err := u.repo.Update(user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// UpdateAvailability sets the caller's own presence status.
+func (u *AuthUsecase) UpdateAvailability(userID uint, availability string) (*domain.User, error) {
+	if !validAvailability[availability] {
+		return nil, ErrInvalidAvailability
+	}
+
+	user, err := u.repo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Availability = availability
+	if err := u.repo.Update(user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }

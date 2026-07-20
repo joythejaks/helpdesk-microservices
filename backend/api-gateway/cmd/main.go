@@ -104,6 +104,18 @@ func main() {
 		authMiddleware(secret),
 		proxyTrim("/auth", authURL),
 	)
+	r.PATCH("/auth/me",
+		authMiddleware(secret),
+		proxyTrim("/auth", authURL),
+	)
+	r.PATCH("/auth/me/availability",
+		authMiddleware(secret),
+		proxyTrim("/auth", authURL),
+	)
+	r.POST("/auth/change-password",
+		authMiddleware(secret),
+		proxyTrim("/auth", authURL),
+	)
 
 	// =======================
 	// REPORTS (ADMIN, PROTECTED)
