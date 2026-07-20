@@ -28,10 +28,17 @@ class AdminReportsLoading extends AdminReportsState {
 }
 
 class AdminReportsLoaded extends AdminReportsState {
-  const AdminReportsLoaded({required this.summary, required this.agentReports});
+  const AdminReportsLoaded({
+    required this.summary,
+    required this.agentReports,
+    required this.criticalTrend,
+    required this.queueSize,
+  });
 
   final List<ReportSummaryRow> summary;
   final List<AgentReportRow> agentReports;
+  final CriticalTrend criticalTrend;
+  final int queueSize;
 }
 
 class AdminReportsFailure extends AdminReportsState {
@@ -62,11 +69,15 @@ class AdminReportsBloc extends Bloc<AdminReportsEvent, AdminReportsState> {
           groupBy: event.groupBy,
         ),
         _adminRepository.getAgentReports(from: event.from, to: event.to),
+        _adminRepository.getCriticalTrend(),
+        _adminRepository.getQueueSize(),
       ]);
       emit(
         AdminReportsLoaded(
           summary: results[0] as List<ReportSummaryRow>,
           agentReports: results[1] as List<AgentReportRow>,
+          criticalTrend: results[2] as CriticalTrend,
+          queueSize: results[3] as int,
         ),
       );
     } catch (error) {

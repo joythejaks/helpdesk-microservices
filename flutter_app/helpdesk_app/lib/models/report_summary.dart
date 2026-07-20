@@ -40,3 +40,45 @@ class AgentReportRow {
     );
   }
 }
+
+class CriticalTicketRow {
+  const CriticalTicketRow({
+    required this.id,
+    required this.title,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String title;
+  final DateTime createdAt;
+
+  factory CriticalTicketRow.fromJson(Map<String, dynamic> json) {
+    return CriticalTicketRow(
+      id: json['id'] as int,
+      title: (json['title'] as String?) ?? '-',
+      createdAt:
+          DateTime.tryParse((json['created_at'] as String?) ?? '') ??
+          DateTime.now(),
+    );
+  }
+}
+
+class CriticalTrend {
+  const CriticalTrend({required this.count, required this.tickets});
+
+  final int count;
+  final List<CriticalTicketRow> tickets;
+
+  factory CriticalTrend.fromJson(Map<String, dynamic> json) {
+    final rawTickets = json['tickets'];
+    return CriticalTrend(
+      count: (json['count'] as int?) ?? 0,
+      tickets: rawTickets is List
+          ? rawTickets
+              .whereType<Map<String, dynamic>>()
+              .map(CriticalTicketRow.fromJson)
+              .toList(growable: false)
+          : const [],
+    );
+  }
+}

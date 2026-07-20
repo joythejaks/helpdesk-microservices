@@ -109,6 +109,8 @@ func main() {
 
 		internalOnly.GET("/reports/summary", reportHandler.Summary)
 		internalOnly.GET("/reports/agents", reportHandler.AgentPerformance)
+		internalOnly.GET("/reports/critical-trends", reportHandler.CriticalTrend)
+		internalOnly.GET("/reports/queue-size", reportHandler.QueueSize)
 	}
 
 	srv := &http.Server{

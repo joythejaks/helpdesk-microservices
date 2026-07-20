@@ -57,3 +57,36 @@ func (r *reportRepository) AgentPerformance(from, to time.Time) ([]domain.AgentS
 
 	return rows, err
 }
+
+func (r *reportRepository) HighPriorityTrend(since time.Time) (domain.CriticalTrend, error) {
+	var count int64
+	if err := r.db.Model(&domain.Ticket{}).
+		Where("priority = ? AND created_at >= ?", "High", since).
+		Count(&count).Error; err != nil {
+		return domain.CriticalTrend{}, err
+	}
+
+	var tickets []domain.Ticket
+	if err := r.db.
+		Where("priority = ? AND created_at >= ?", "High", since).
+		Order("created_at desc").
+		Limit(10).
+		Find(&tickets).Error; err != nil {
+		return domain.CriticalTrend{}, err
+	}
+
+	rows := make([]domain.CriticalTicketRow, len(tickets))
+	for i, t := range tickets {
+		rows[i] = domain.CriticalTicketRow{ID: t.ID, Title: t.Title, CreatedAt: t.CreatedAt}
+	}
+
+	return domain.CriticalTrend{Count: int(count), Tickets: rows}, nil
+}
+
+func (r *reportRepository) QueueSize() (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Ticket{}).
+		Where("assigned_agent_id IS NULL").
+		Count(&count).Error
+	return count, err
+}

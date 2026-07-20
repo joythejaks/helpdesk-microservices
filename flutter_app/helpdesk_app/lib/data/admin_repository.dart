@@ -58,6 +58,23 @@ class AdminRepository {
         .toList(growable: false);
   }
 
+  Future<CriticalTrend> getCriticalTrend({int hours = 24}) async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(
+      '/reports/critical-trends',
+      token: token,
+      query: {'hours': '$hours'},
+    );
+    return CriticalTrend.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  Future<int> getQueueSize() async {
+    final token = await _requireToken();
+    final response = await _apiClient.get('/reports/queue-size', token: token);
+    final data = response['data'] as Map<String, dynamic>;
+    return (data['queue_size'] as num?)?.toInt() ?? 0;
+  }
+
   Future<List<AppUser>> listAgents() async {
     final token = await _requireToken();
     final response = await _apiClient.get(

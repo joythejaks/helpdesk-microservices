@@ -122,6 +122,8 @@ func main() {
 	// =======================
 	r.GET("/reports/summary", authMiddleware(secret), proxyTo(ticketURL))
 	r.GET("/reports/agents", authMiddleware(secret), proxyTo(ticketURL))
+	r.GET("/reports/critical-trends", authMiddleware(secret), proxyTo(ticketURL))
+	r.GET("/reports/queue-size", authMiddleware(secret), proxyTo(ticketURL))
 
 	// =======================
 	// TICKETS (ROOT)

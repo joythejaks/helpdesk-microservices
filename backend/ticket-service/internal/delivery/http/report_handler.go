@@ -1,6 +1,7 @@
 package http
 
 import (
+	"strconv"
 	"time"
 
 	"ticket-service/internal/usecase"
@@ -70,4 +71,41 @@ func (h *ReportHandler) AgentPerformance(c *gin.Context) {
 	}
 
 	response.Success(c, rows)
+}
+
+func (h *ReportHandler) CriticalTrend(c *gin.Context) {
+	if c.GetHeader("X-User-ROLE") != "admin" {
+		response.Error(c, 403, "forbidden", "FORBIDDEN")
+		return
+	}
+
+	hours := 24
+	if v := c.Query("hours"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			hours = parsed
+		}
+	}
+
+	trend, err := h.usecase.CriticalTrend(hours)
+	if err != nil {
+		response.Error(c, 500, "failed to build report", "INTERNAL_ERROR")
+		return
+	}
+
+	response.Success(c, trend)
+}
+
+func (h *ReportHandler) QueueSize(c *gin.Context) {
+	if c.GetHeader("X-User-ROLE") != "admin" {
+		response.Error(c, 403, "forbidden", "FORBIDDEN")
+		return
+	}
+
+	size, err := h.usecase.QueueSize()
+	if err != nil {
+		response.Error(c, 500, "failed to build report", "INTERNAL_ERROR")
+		return
+	}
+
+	response.Success(c, gin.H{"queue_size": size})
 }
