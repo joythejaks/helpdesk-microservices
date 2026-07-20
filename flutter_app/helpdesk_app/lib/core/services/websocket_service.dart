@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class WebSocketService {
@@ -23,18 +25,18 @@ class WebSocketService {
           onMessageReceived(data);
         },
         onError: (error) {
-          print('WS Error: $error');
+          debugPrint('WS Error: $error');
           _retryConnection(token, onMessageReceived);
         },
         onDone: () {
           if (!_isManualDisconnect) {
-            print('WS Connection Lost. Retrying...');
+            debugPrint('WS Connection Lost. Retrying...');
             _retryConnection(token, onMessageReceived);
           }
         },
       );
     } catch (e) {
-      print('Could not connect to WS: $e');
+      debugPrint('Could not connect to WS: $e');
     }
   }
 

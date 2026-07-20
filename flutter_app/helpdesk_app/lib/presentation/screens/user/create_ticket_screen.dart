@@ -80,11 +80,12 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
             const SurfaceCard(
               child: Row(
                 children: [
-                  Icon(Icons.attach_file, color: HelpdeskTheme.primary),
+                  Icon(Icons.info_outline, color: HelpdeskTheme.primary),
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Lampirkan screenshot atau dokumen pendukung',
+                      'Lampiran screenshot/dokumen bisa ditambahkan setelah '
+                      'tiket ini dibuat, dari halaman detail tiket.',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),

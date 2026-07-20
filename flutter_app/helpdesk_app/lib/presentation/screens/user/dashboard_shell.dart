@@ -8,7 +8,6 @@ import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
 import 'package:helpdesk_app/presentation/screens/user/create_ticket_screen.dart';
 import 'package:helpdesk_app/presentation/screens/user/home_screen.dart';
-import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
 
 const _navItems = [
@@ -66,8 +65,6 @@ class _DashboardShellState extends State<DashboardShell> {
   }
 
   void _openTicket(Ticket ticket) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: ticket)),
-    );
+    Navigator.of(context).pushNamed('/ticket-detail', arguments: ticket);
   }
 }

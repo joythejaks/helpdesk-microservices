@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
-import 'package:helpdesk_app/presentation/navigation/role_router.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -13,9 +12,8 @@ class SplashScreen extends StatelessWidget {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => homeForRole(state.user)),
-          );
+          Navigator.of(context)
+              .pushReplacementNamed('/home', arguments: state.user);
         } else if (state is Unauthenticated) {
           Navigator.of(context).pushReplacementNamed('/login');
         }

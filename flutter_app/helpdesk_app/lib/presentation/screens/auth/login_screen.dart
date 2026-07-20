@@ -3,12 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
-import 'package:helpdesk_app/presentation/navigation/role_router.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/app_mark.dart';
 import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
 import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,9 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => homeForRole(state.user)),
-          );
+          Navigator.of(context)
+              .pushReplacementNamed('/home', arguments: state.user);
         }
 
         if (state is AuthFailure) {
@@ -82,7 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
-                  if (value.length < 6) return 'Password minimal 6 karakter';
+                  if (value.length < 8) return 'Password minimal 8 karakter';
+                  if (value.length > 72) return 'Password maksimal 72 karakter';
                   return null;
                 },
               ),
@@ -100,9 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 14),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  ),
+                  onPressed: () => Navigator.of(context).pushNamed('/register'),
                   child: const Text('Buat akun baru'),
                 ),
               ),

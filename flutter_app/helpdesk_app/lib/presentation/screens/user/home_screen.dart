@@ -139,7 +139,11 @@ class HomeScreen extends StatelessWidget {
     int urgent = 0;
 
     for (var t in tickets) {
-      if (t.status == 'Resolved') resolved++; else open++;
+      if (t.status == 'Resolved') {
+        resolved++;
+      } else {
+        open++;
+      }
       if (t.priority == 'High') urgent++;
     }
 

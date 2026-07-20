@@ -38,21 +38,30 @@ class AgentDashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 26),
-            SurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SLA Response',
-                    style: Theme.of(context).textTheme.titleMedium,
+            Builder(
+              builder: (context) {
+                final sla = _computeSla(tickets);
+                return SurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SLA Response',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 18),
+                      ProgressLine(
+                        label: 'Selesai Tepat Waktu',
+                        value: sla.onTimeRate,
+                      ),
+                      ProgressLine(
+                        label: 'Tiket Aktif Overdue',
+                        value: sla.overdueActiveRate,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  // TODO: fetch SLA data from analytics endpoint
-                  const ProgressLine(label: 'Network', value: .86),
-                  const ProgressLine(label: 'Account', value: .72),
-                  const ProgressLine(label: 'Hardware', value: .54),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Text(
@@ -71,4 +80,33 @@ class AgentDashboardScreen extends StatelessWidget {
       },
     );
   }
+}
+
+const _resolvedStatuses = {'resolved', 'closed'};
+const _activeStatuses = {'assigned', 'in_progress', 'pending'};
+
+({double onTimeRate, double overdueActiveRate}) _computeSla(List<Ticket> tickets) {
+  var resolvedWithDue = 0;
+  var resolvedOnTime = 0;
+  var activeWithDue = 0;
+  var activeOverdue = 0;
+  final now = DateTime.now();
+
+  for (final t in tickets) {
+    if (_resolvedStatuses.contains(t.rawStatus) && t.dueAt != null) {
+      resolvedWithDue++;
+      final completedAt = t.resolvedAt ?? t.closedAt;
+      if (completedAt != null && !completedAt.isAfter(t.dueAt!)) {
+        resolvedOnTime++;
+      }
+    } else if (_activeStatuses.contains(t.rawStatus) && t.dueAt != null) {
+      activeWithDue++;
+      if (t.dueAt!.isBefore(now)) activeOverdue++;
+    }
+  }
+
+  return (
+    onTimeRate: resolvedWithDue == 0 ? 0 : resolvedOnTime / resolvedWithDue,
+    overdueActiveRate: activeWithDue == 0 ? 0 : activeOverdue / activeWithDue,
+  );
 }

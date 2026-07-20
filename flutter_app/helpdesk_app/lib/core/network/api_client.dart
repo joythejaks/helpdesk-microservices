@@ -71,6 +71,66 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required String fieldName,
+    required String filename,
+    required List<int> bytes,
+    String? token,
+  }) {
+    final uri = Uri.parse('${Api.baseUrl}$path');
+    return _sendWithRefresh(
+      token: token,
+      request: (t) async {
+        final request = http.MultipartRequest('POST', uri)
+          ..files.add(
+            http.MultipartFile.fromBytes(fieldName, bytes, filename: filename),
+          );
+        if (t != null && t.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $t';
+        }
+        final streamed = await _httpClient.send(request);
+        return http.Response.fromStream(streamed);
+      },
+    );
+  }
+
+  Future<({List<int> bytes, String contentType})> downloadBytes(
+    String path, {
+    String? token,
+  }) async {
+    final uri = Uri.parse('${Api.baseUrl}$path');
+    Future<http.Response> doGet(String? t) => _httpClient.get(
+      uri,
+      headers: {if (t != null && t.isNotEmpty) 'Authorization': 'Bearer $t'},
+    );
+
+    var response = await doGet(token);
+    if (response.statusCode == 401 && token != null && onUnauthorized != null) {
+      final refreshed = await onUnauthorized!();
+      if (refreshed != null) response = await doGet(refreshed);
+    }
+
+    if (response.statusCode >= 400) {
+      Map<String, dynamic>? decoded;
+      try {
+        decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        // Body wasn't JSON (e.g. a plain-text error from a proxy) — fall
+        // through to the generic message below.
+      }
+      throw ApiException(
+        (decoded?['message'] as String?) ?? 'Gagal mengunduh berkas',
+        decoded?['error'] as String?,
+      );
+    }
+
+    return (
+      bytes: response.bodyBytes,
+      contentType: response.headers['content-type'] ?? 'application/octet-stream',
+    );
+  }
+
   Future<Map<String, dynamic>> _sendWithRefresh({
     required String? token,
     required Future<http.Response> Function(String? token) request,

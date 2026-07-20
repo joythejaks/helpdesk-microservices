@@ -9,10 +9,15 @@ import 'core/theme/helpdesk_theme.dart';
 import 'data/admin_repository.dart';
 import 'data/auth_repository.dart';
 import 'data/ticket_repository.dart';
+import 'models/app_user.dart';
+import 'models/ticket.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/notification/notification_bloc.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
+import 'presentation/navigation/role_router.dart';
+import 'presentation/screens/agent/ticket_detail_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 
 void main() {
@@ -90,6 +95,20 @@ class HelpdeskApp extends StatelessWidget {
             routes: {
               '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
+              '/register': (context) => const RegisterScreen(),
+            },
+            onGenerateRoute: (settings) {
+              switch (settings.name) {
+                case '/ticket-detail':
+                  final ticket = settings.arguments as Ticket;
+                  return MaterialPageRoute(
+                    builder: (_) => TicketDetailScreen(ticket: ticket),
+                  );
+                case '/home':
+                  final user = settings.arguments as AppUser;
+                  return MaterialPageRoute(builder: (_) => homeForRole(user));
+              }
+              return null;
             },
           ),
         ),

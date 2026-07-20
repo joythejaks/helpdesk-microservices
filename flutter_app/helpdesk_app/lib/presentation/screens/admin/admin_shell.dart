@@ -6,7 +6,6 @@ import 'package:helpdesk_app/presentation/bloc/admin/admin_reports_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/screens/admin/admin_dashboard_screen.dart';
 import 'package:helpdesk_app/presentation/screens/admin/staff_provisioning_screen.dart';
-import 'package:helpdesk_app/presentation/screens/agent/ticket_detail_screen.dart';
 import 'package:helpdesk_app/presentation/screens/agent/ticket_list_screen.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
 import 'package:helpdesk_app/presentation/widgets/glass_nav_bar.dart';
@@ -60,8 +59,6 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   void _openTicket(Ticket ticket) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TicketDetailScreen(ticket: ticket)),
-    );
+    Navigator.of(context).pushNamed('/ticket-detail', arguments: ticket);
   }
 }

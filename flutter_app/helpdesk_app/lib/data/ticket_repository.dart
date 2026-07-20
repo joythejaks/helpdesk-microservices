@@ -1,6 +1,7 @@
 import 'package:helpdesk_app/core/network/api_client.dart';
 import 'package:helpdesk_app/core/storage/token_storage.dart';
 import 'package:helpdesk_app/models/ticket.dart';
+import 'package:helpdesk_app/models/ticket_attachment.dart';
 import 'package:helpdesk_app/models/ticket_comment.dart';
 
 class TicketRepository {
@@ -111,6 +112,47 @@ class TicketRepository {
       body: {'body': body},
     );
     return TicketComment.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<TicketAttachment>> getAttachments(String ticketId) async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(
+      '/tickets/$ticketId/attachments',
+      token: token,
+    );
+    final data = response['data'];
+    if (data is! List) return [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(TicketAttachment.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<TicketAttachment> uploadAttachment({
+    required String ticketId,
+    required String filename,
+    required List<int> bytes,
+  }) async {
+    final token = await _requireToken();
+    final response = await _apiClient.postMultipart(
+      '/tickets/$ticketId/attachments',
+      fieldName: 'file',
+      filename: filename,
+      bytes: bytes,
+      token: token,
+    );
+    return TicketAttachment.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  Future<({List<int> bytes, String contentType})> downloadAttachment({
+    required String ticketId,
+    required String attachmentId,
+  }) async {
+    final token = await _requireToken();
+    return _apiClient.downloadBytes(
+      '/tickets/$ticketId/attachments/$attachmentId',
+      token: token,
+    );
   }
 
   Future<String> _requireToken() async {
