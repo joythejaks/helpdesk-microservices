@@ -19,60 +19,100 @@ class SplashScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: HelpdeskTheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo placeholder - bisa diganti dengan gambar logo
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: HelpdeskTheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: HelpdeskTheme.primary.withValues(alpha: 51),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [HelpdeskTheme.primary, Color(0xFF00243A)],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Glowing circular badge — matches the design's soft
+                  // halo behind the app icon on the splash screen.
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 60),
+                          blurRadius: 48,
+                          spreadRadius: 12,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.support_agent,
-                  size: 60,
-                  color: HelpdeskTheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                'Helpdesk\nTicketing',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      fontFamily: 'Manrope',
-                      color: HelpdeskTheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                      height: 1.0,
+                    child: const Icon(
+                      Icons.confirmation_number_outlined,
+                      size: 56,
+                      color: HelpdeskTheme.primary,
                     ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Helpdesk\nTicketing',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          fontFamily: 'Manrope',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'PRECISION SUPPORT SOLUTIONS',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'Inter',
+                          color: Colors.white.withValues(alpha: 178),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2,
+                        ),
+                  ),
+                  const SizedBox(height: 48),
+                  const _SplashDots(),
+                  const SizedBox(height: 32),
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Precision Support Solutions',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontFamily: 'Inter',
-                      color: HelpdeskTheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-              const SizedBox(height: 48),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(HelpdeskTheme.primary),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Purely decorative — there's no real onboarding carousel behind the
+/// splash screen, this just mirrors the uploaded design's page-indicator
+/// dots.
+class _SplashDots extends StatelessWidget {
+  const _SplashDots();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        final active = i == 1;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: active ? 20 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: active ? 255 : 102),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      }),
     );
   }
 }

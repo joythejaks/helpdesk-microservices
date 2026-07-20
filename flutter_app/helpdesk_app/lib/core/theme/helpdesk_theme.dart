@@ -106,6 +106,7 @@ class HelpdeskTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceHigh,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,

@@ -10,13 +10,25 @@ class SurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: HelpdeskTheme.surfaceLowest,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        child: Padding(padding: const EdgeInsets.all(18), child: child),
+        boxShadow: [
+          BoxShadow(
+            color: HelpdeskTheme.primary.withValues(alpha: 13),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: HelpdeskTheme.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(padding: const EdgeInsets.all(18), child: child),
+        ),
       ),
     );
   }

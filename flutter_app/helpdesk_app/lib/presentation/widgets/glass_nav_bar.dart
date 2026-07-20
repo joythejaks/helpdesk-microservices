@@ -31,15 +31,25 @@ class GlassNavBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 for (var i = 0; i < items.length; i++)
-                  IconButton(
-                    tooltip: items[i].$2,
-                    isSelected: i == index,
-                    selectedIcon: Icon(
-                      items[i].$1,
-                      color: HelpdeskTheme.primary,
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: i == index
+                          ? HelpdeskTheme.primaryFixed
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    onPressed: () => onChanged(i),
-                    icon: Icon(items[i].$1, color: HelpdeskTheme.onVariant),
+                    child: IconButton(
+                      tooltip: items[i].$2,
+                      isSelected: i == index,
+                      selectedIcon: Icon(
+                        items[i].$1,
+                        color: HelpdeskTheme.primary,
+                      ),
+                      onPressed: () => onChanged(i),
+                      icon: Icon(items[i].$1, color: HelpdeskTheme.onVariant),
+                    ),
                   ),
               ],
             ),
