@@ -10,7 +10,7 @@ import (
 
 	delivery "ticket-service/internal/delivery/http"
 	"ticket-service/internal/delivery/messaging"
-	"ticket-service/internal/domain"
+	"ticket-service/internal/migrations"
 	"ticket-service/internal/repository"
 	"ticket-service/internal/usecase"
 	"ticket-service/pkg/config"
@@ -46,7 +46,9 @@ func main() {
 		logger.Log.Fatal("failed to get database instance:", err)
 	}
 
-	db.AutoMigrate(&domain.Ticket{}, &domain.TicketStatusHistory{}, &domain.TicketComment{}, &domain.TicketAttachment{})
+	if err := migrations.Run(sqlDB, "tickets"); err != nil {
+		logger.Log.Fatal("failed to run migrations:", err)
+	}
 
 	// repo & usecase
 	repo := repository.NewTicketRepository(db)

@@ -2,7 +2,7 @@ package main
 
 import (
 	delivery "auth-service/internal/delivery/http"
-	"auth-service/internal/domain"
+	"auth-service/internal/migrations"
 	"auth-service/internal/repository"
 	"auth-service/internal/usecase"
 	"auth-service/pkg/config"
@@ -51,8 +51,9 @@ func main() {
 		logger.Log.Fatal("failed to get database instance:", err)
 	}
 
-	// 🔥 TAMBAH refresh token migration
-	db.AutoMigrate(&domain.User{}, &domain.RefreshToken{})
+	if err := migrations.Run(sqlDB, "users"); err != nil {
+		logger.Log.Fatal("failed to run migrations:", err)
+	}
 
 	repo := repository.NewUserRepository(db)
 

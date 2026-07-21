@@ -12,7 +12,7 @@ import (
 	"notification-service/internal/consumer"
 	delivery "notification-service/internal/delivery/http"
 	"notification-service/internal/delivery/ws"
-	"notification-service/internal/domain"
+	"notification-service/internal/migrations"
 	"notification-service/internal/repository"
 	"notification-service/internal/usecase"
 	"notification-service/pkg/config"
@@ -46,7 +46,9 @@ func main() {
 	if err != nil {
 		logger.Log.Fatal("failed to get database instance:", err)
 	}
-	db.AutoMigrate(&domain.Notification{})
+	if err := migrations.Run(sqlDB, "notifications"); err != nil {
+		logger.Log.Fatal("failed to run migrations:", err)
+	}
 
 	notificationRepo := repository.NewNotificationRepository(db)
 	notificationUsecase := usecase.NewNotificationUsecase(notificationRepo)
