@@ -6,7 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd
 
 # distroless: no shell, no package manager, minimal CVE surface for the
 # image that actually ships. Runs as the built-in "nonroot" user.

@@ -18,6 +18,9 @@ type Config struct {
 	EnableSwagger  bool
 	AuthRateLimitRPS   float64
 	AuthRateLimitBurst float64
+
+	BootstrapAdminEmail    string
+	BootstrapAdminPassword string
 }
 
 var AppConfig Config
@@ -35,6 +38,9 @@ func Load() {
 		EnableSwagger:      os.Getenv("ENABLE_SWAGGER") == "true",
 		AuthRateLimitRPS:   parseFloatOrDefault(os.Getenv("AUTH_RATE_LIMIT_RPS"), 5),
 		AuthRateLimitBurst: parseFloatOrDefault(os.Getenv("AUTH_RATE_LIMIT_BURST"), 10),
+
+		BootstrapAdminEmail:    os.Getenv("BOOTSTRAP_ADMIN_EMAIL"),
+		BootstrapAdminPassword: os.Getenv("BOOTSTRAP_ADMIN_PASSWORD"),
 	}
 
 	if AppConfig.AppPort == "" {

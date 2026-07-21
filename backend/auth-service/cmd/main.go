@@ -55,6 +55,11 @@ func main() {
 	db.AutoMigrate(&domain.User{}, &domain.RefreshToken{})
 
 	repo := repository.NewUserRepository(db)
+
+	if err := bootstrapAdmin(repo); err != nil {
+		logger.Log.Error("bootstrap admin: ", err)
+	}
+
 	usecase := usecase.NewAuthUsecase(repo)
 
 	// 🔥 TAMBAH refresh repo
