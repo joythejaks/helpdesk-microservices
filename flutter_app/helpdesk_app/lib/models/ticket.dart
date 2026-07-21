@@ -22,7 +22,8 @@ class Ticket {
   final String title;
   final String department;
   final String status; // display label, e.g. "In Progress"
-  final String rawStatus; // backend value, e.g. "in_progress" — PATCH payloads use this
+  final String
+  rawStatus; // backend value, e.g. "in_progress" — PATCH payloads use this
   final String priority;
   final String time;
   final String description;

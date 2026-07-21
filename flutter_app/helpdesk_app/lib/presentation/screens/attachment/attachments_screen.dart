@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:helpdesk_app/core/services/file_saver/file_saver.dart';
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/data/ticket_repository.dart';
 import 'package:helpdesk_app/models/ticket_attachment.dart';
 import 'package:helpdesk_app/presentation/bloc/attachment/attachment_bloc.dart';
@@ -22,9 +21,9 @@ class AttachmentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => AttachmentBloc(
-        ticketRepository: context.read<TicketRepository>(),
-      )..add(AttachmentsRequested(ticketId)),
+      create: (context) =>
+          AttachmentBloc(ticketRepository: context.read<TicketRepository>())
+            ..add(AttachmentsRequested(ticketId)),
       child: _AttachmentsView(ticketId: ticketId),
     );
   }
@@ -61,7 +60,8 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
 
   List<TicketAttachment> _applyFilters(List<TicketAttachment> attachments) {
     var result = attachments.where((a) {
-      final matchesQuery = _query.isEmpty || a.filename.toLowerCase().contains(_query);
+      final matchesQuery =
+          _query.isEmpty || a.filename.toLowerCase().contains(_query);
       final matchesType = switch (_typeFilter) {
         _TypeFilter.all => true,
         _TypeFilter.images => a.contentType.startsWith('image/'),
@@ -74,7 +74,9 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
       return switch (_sortOrder) {
         _SortOrder.newest => b.createdAt.compareTo(a.createdAt),
         _SortOrder.oldest => a.createdAt.compareTo(b.createdAt),
-        _SortOrder.nameAsc => a.filename.toLowerCase().compareTo(b.filename.toLowerCase()),
+        _SortOrder.nameAsc => a.filename.toLowerCase().compareTo(
+          b.filename.toLowerCase(),
+        ),
         _SortOrder.largest => b.size.compareTo(a.size),
       };
     });
@@ -83,12 +85,13 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: HelpdeskTheme.surface,
+      backgroundColor: colors.surface,
       floatingActionButton: FloatingActionButton(
         onPressed: () => _pickAndUpload(context),
-        backgroundColor: HelpdeskTheme.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
         child: const Icon(Icons.add),
       ),
       body: SafeArea(
@@ -123,17 +126,21 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
                         ChoiceChip(
                           label: const Text('All'),
                           selected: _typeFilter == _TypeFilter.all,
-                          onSelected: (_) => setState(() => _typeFilter = _TypeFilter.all),
+                          onSelected: (_) =>
+                              setState(() => _typeFilter = _TypeFilter.all),
                         ),
                         ChoiceChip(
                           label: const Text('Images'),
                           selected: _typeFilter == _TypeFilter.images,
-                          onSelected: (_) => setState(() => _typeFilter = _TypeFilter.images),
+                          onSelected: (_) =>
+                              setState(() => _typeFilter = _TypeFilter.images),
                         ),
                         ChoiceChip(
                           label: const Text('Documents'),
                           selected: _typeFilter == _TypeFilter.documents,
-                          onSelected: (_) => setState(() => _typeFilter = _TypeFilter.documents),
+                          onSelected: (_) => setState(
+                            () => _typeFilter = _TypeFilter.documents,
+                          ),
                         ),
                       ],
                     ),
@@ -142,10 +149,22 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
                     icon: const Icon(Icons.sort),
                     onSelected: (value) => setState(() => _sortOrder = value),
                     itemBuilder: (context) => const [
-                      PopupMenuItem(value: _SortOrder.newest, child: Text('Terbaru')),
-                      PopupMenuItem(value: _SortOrder.oldest, child: Text('Terlama')),
-                      PopupMenuItem(value: _SortOrder.nameAsc, child: Text('Nama A-Z')),
-                      PopupMenuItem(value: _SortOrder.largest, child: Text('Ukuran terbesar')),
+                      PopupMenuItem(
+                        value: _SortOrder.newest,
+                        child: Text('Terbaru'),
+                      ),
+                      PopupMenuItem(
+                        value: _SortOrder.oldest,
+                        child: Text('Terlama'),
+                      ),
+                      PopupMenuItem(
+                        value: _SortOrder.nameAsc,
+                        child: Text('Nama A-Z'),
+                      ),
+                      PopupMenuItem(
+                        value: _SortOrder.largest,
+                        child: Text('Ukuran terbesar'),
+                      ),
                     ],
                   ),
                 ],
@@ -155,7 +174,8 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
             Expanded(
               child: BlocBuilder<AttachmentBloc, AttachmentState>(
                 builder: (context, state) {
-                  if (state is AttachmentLoading || state is AttachmentInitial) {
+                  if (state is AttachmentLoading ||
+                      state is AttachmentInitial) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final all = switch (state) {
@@ -172,7 +192,10 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
                   return Column(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 4,
+                        ),
                         child: Row(
                           children: [
                             Text(
@@ -184,20 +207,31 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
                       ),
                       if (state is AttachmentUploading)
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 4,
+                          ),
                           child: LinearProgressIndicator(),
                         ),
                       Expanded(
                         child: filtered.isEmpty
-                            ? const Center(child: Text('Tidak ada berkas yang cocok.'))
+                            ? const Center(
+                                child: Text('Tidak ada berkas yang cocok.'),
+                              )
                             : ListView.separated(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                                itemCount: filtered.length,
-                                separatorBuilder: (_, _) => const Divider(height: 1),
-                                itemBuilder: (context, index) => _AttachmentTile(
-                                  attachment: filtered[index],
-                                  onTap: () => _download(context, filtered[index]),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 8,
                                 ),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) =>
+                                    _AttachmentTile(
+                                      attachment: filtered[index],
+                                      onTap: () =>
+                                          _download(context, filtered[index]),
+                                    ),
                               ),
                       ),
                     ],
@@ -221,7 +255,10 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
     );
   }
 
-  Future<void> _download(BuildContext context, TicketAttachment attachment) async {
+  Future<void> _download(
+    BuildContext context,
+    TicketAttachment attachment,
+  ) async {
     try {
       final result = await context.read<TicketRepository>().downloadAttachment(
         ticketId: widget.ticketId,
@@ -229,14 +266,14 @@ class _AttachmentsViewState extends State<_AttachmentsView> {
       );
       final saved = await saveBytes(attachment.filename, result.bytes);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tersimpan: $saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Tersimpan: $saved')));
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengunduh: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengunduh: $error')));
     }
   }
 }
@@ -249,12 +286,16 @@ class _AttachmentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
-        backgroundColor: HelpdeskTheme.primaryContainer,
-        child: Icon(_iconForContentType(attachment.contentType), color: HelpdeskTheme.primary),
+        backgroundColor: colors.primaryContainer,
+        child: Icon(
+          _iconForContentType(attachment.contentType),
+          color: colors.primary,
+        ),
       ),
       title: Text(attachment.filename, overflow: TextOverflow.ellipsis),
       subtitle: Text(

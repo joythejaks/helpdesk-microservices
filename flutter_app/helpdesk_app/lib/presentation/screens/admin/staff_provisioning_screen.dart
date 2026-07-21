@@ -11,7 +11,8 @@ class StaffProvisioningScreen extends StatefulWidget {
   const StaffProvisioningScreen({super.key});
 
   @override
-  State<StaffProvisioningScreen> createState() => _StaffProvisioningScreenState();
+  State<StaffProvisioningScreen> createState() =>
+      _StaffProvisioningScreenState();
 }
 
 class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
@@ -30,7 +31,8 @@ class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => StaffBloc(adminRepository: context.read<AdminRepository>()),
+      create: (context) =>
+          StaffBloc(adminRepository: context.read<AdminRepository>()),
       child: BlocListener<StaffBloc, StaffState>(
         listener: (context, state) {
           if (state is StaffCreated) {
@@ -62,9 +64,13 @@ class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
                 icon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
-                  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-                  if (!emailRegex.hasMatch(value)) return 'Format email tidak valid';
+                  if (value == null || value.isEmpty)
+                    return 'Email tidak boleh kosong';
+                  final emailRegex = RegExp(
+                    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                  );
+                  if (!emailRegex.hasMatch(value))
+                    return 'Format email tidak valid';
                   return null;
                 },
               ),
@@ -75,7 +81,8 @@ class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
                 icon: Icons.lock_outline,
                 obscureText: true,
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
+                  if (value == null || value.isEmpty)
+                    return 'Password tidak boleh kosong';
                   if (value.length < 8) return 'Password minimal 8 karakter';
                   if (value.length > 72) return 'Password maksimal 72 karakter';
                   return null;

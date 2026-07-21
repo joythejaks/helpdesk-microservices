@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
-
 class SurfaceCard extends StatelessWidget {
   const SurfaceCard({super.key, required this.child, this.onTap});
 
@@ -10,19 +8,20 @@ class SurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: HelpdeskTheme.primary.withValues(alpha: 13),
+            color: colors.primary.withAlpha(13),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Material(
-        color: HelpdeskTheme.surfaceLowest,
+        color: colors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,

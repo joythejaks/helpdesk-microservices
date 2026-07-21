@@ -77,10 +77,7 @@ class AdminRepository {
 
   Future<List<AppUser>> listAgents() async {
     final token = await _requireToken();
-    final response = await _apiClient.get(
-      '/auth/admin/agents',
-      token: token,
-    );
+    final response = await _apiClient.get('/auth/admin/agents', token: token);
     final data = response['data'];
     if (data is! List) return [];
     return data

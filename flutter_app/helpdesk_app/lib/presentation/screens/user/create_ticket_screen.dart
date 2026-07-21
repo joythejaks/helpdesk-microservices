@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
 import 'package:helpdesk_app/presentation/widgets/gradient_button.dart';
@@ -61,7 +60,8 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               label: 'Judul kendala',
               icon: Icons.subject,
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Judul tidak boleh kosong';
+                if (value == null || value.isEmpty)
+                  return 'Judul tidak boleh kosong';
                 return null;
               },
             ),
@@ -72,17 +72,21 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               icon: Icons.notes,
               maxLines: 5,
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Deskripsi tidak boleh kosong';
+                if (value == null || value.isEmpty)
+                  return 'Deskripsi tidak boleh kosong';
                 return null;
               },
             ),
             const SizedBox(height: 18),
-            const SurfaceCard(
+            SurfaceCard(
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: HelpdeskTheme.primary),
-                  SizedBox(width: 12),
-                  Expanded(
+                  Icon(
+                    Icons.info_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Text(
                       'Lampiran screenshot/dokumen bisa ditambahkan setelah '
                       'tiket ini dibuat, dari halaman detail tiket.',

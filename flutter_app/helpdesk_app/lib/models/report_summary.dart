@@ -75,9 +75,9 @@ class CriticalTrend {
       count: (json['count'] as int?) ?? 0,
       tickets: rawTickets is List
           ? rawTickets
-              .whereType<Map<String, dynamic>>()
-              .map(CriticalTicketRow.fromJson)
-              .toList(growable: false)
+                .whereType<Map<String, dynamic>>()
+                .map(CriticalTicketRow.fromJson)
+                .toList(growable: false)
           : const [],
     );
   }

@@ -40,10 +40,13 @@ class WebSocketService {
     }
   }
 
-  void _retryConnection(String token, Function(Map<String, dynamic>) onMessageReceived) {
+  void _retryConnection(
+    String token,
+    Function(Map<String, dynamic>) onMessageReceived,
+  ) {
     if (_retryCount > 5) return; // Maksimal retry
     _retryCount++;
-    
+
     // Exponential backoff: 2s, 4s, 8s, 16s...
     final delay = Duration(seconds: _retryCount * 2);
     Future.delayed(delay, () {

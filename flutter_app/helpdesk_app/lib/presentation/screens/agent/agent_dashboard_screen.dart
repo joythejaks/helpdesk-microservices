@@ -34,7 +34,9 @@ class AgentDashboardScreen extends StatelessWidget {
                 trailing: Icons.notifications_outlined,
                 trailingBadgeCount: notifState.unreadCount,
                 onTrailingTap: () {
-                  context.read<NotificationBloc>().add(const NotificationCleared());
+                  context.read<NotificationBloc>().add(
+                    const NotificationCleared(),
+                  );
                   Navigator.of(context).pushNamed('/notifications');
                 },
               ),
@@ -87,7 +89,9 @@ class AgentDashboardScreen extends StatelessWidget {
 const _resolvedStatuses = {'resolved', 'closed'};
 const _activeStatuses = {'assigned', 'in_progress', 'pending'};
 
-({double onTimeRate, double overdueActiveRate}) _computeSla(List<Ticket> tickets) {
+({double onTimeRate, double overdueActiveRate}) _computeSla(
+  List<Ticket> tickets,
+) {
   var resolvedWithDue = 0;
   var resolvedOnTime = 0;
   var activeWithDue = 0;

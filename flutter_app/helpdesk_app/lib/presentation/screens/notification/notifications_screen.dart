@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/data/notification_repository.dart';
 import 'package:helpdesk_app/models/notification.dart';
 import 'package:helpdesk_app/presentation/bloc/notification/notification_list_bloc.dart';
@@ -34,7 +33,7 @@ class _NotificationsViewState extends State<_NotificationsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: HelpdeskTheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -73,7 +72,8 @@ class _NotificationsViewState extends State<_NotificationsView> {
             Expanded(
               child: BlocBuilder<NotificationListBloc, NotificationListState>(
                 builder: (context, state) {
-                  if (state is NotificationListLoading || state is NotificationListInitial) {
+                  if (state is NotificationListLoading ||
+                      state is NotificationListInitial) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final items = switch (state) {
@@ -88,7 +88,10 @@ class _NotificationsViewState extends State<_NotificationsView> {
                     return const Center(child: Text('Belum ada notifikasi.'));
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
                     itemCount: items.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) => _NotificationTile(
@@ -123,13 +126,14 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
         backgroundColor: notification.read
-            ? HelpdeskTheme.surfaceHigh
-            : HelpdeskTheme.primaryContainer,
+            ? colors.surfaceContainerHigh
+            : colors.primaryContainer,
         child: Icon(_iconFor(notification.eventType), size: 18),
       ),
       title: Text(
@@ -144,8 +148,8 @@ class _NotificationTile extends StatelessWidget {
           : Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
-                color: HelpdeskTheme.primary,
+              decoration: BoxDecoration(
+                color: colors.primary,
                 shape: BoxShape.circle,
               ),
             ),

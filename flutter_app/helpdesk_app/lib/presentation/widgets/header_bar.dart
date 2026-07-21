@@ -51,7 +51,10 @@ class HeaderBar extends StatelessWidget {
                   top: -2,
                   child: Container(
                     padding: const EdgeInsets.all(3),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
                     decoration: const BoxDecoration(
                       color: Color(0xFFBA1A1A),
                       shape: BoxShape.circle,

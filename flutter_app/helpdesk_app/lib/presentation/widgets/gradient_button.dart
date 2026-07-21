@@ -36,6 +36,7 @@ class GradientButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(54),
           backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),

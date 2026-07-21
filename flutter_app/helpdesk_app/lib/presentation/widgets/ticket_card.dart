@@ -39,10 +39,7 @@ class TicketCard extends StatelessWidget {
             Text(ticket.title, style: Theme.of(context).textTheme.titleMedium),
             if (_subtitle().isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(
-                _subtitle(),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(_subtitle(), style: Theme.of(context).textTheme.bodySmall),
             ],
           ],
         ),

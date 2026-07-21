@@ -23,7 +23,8 @@ class TicketAttachment {
       ticketId: json['ticket_id'] as int,
       uploaderId: json['uploader_id'] as int,
       filename: (json['filename'] as String?) ?? '',
-      contentType: (json['content_type'] as String?) ?? 'application/octet-stream',
+      contentType:
+          (json['content_type'] as String?) ?? 'application/octet-stream',
       size: (json['size'] as num?)?.toInt() ?? 0,
       createdAt:
           DateTime.tryParse((json['created_at'] as String?) ?? '') ??

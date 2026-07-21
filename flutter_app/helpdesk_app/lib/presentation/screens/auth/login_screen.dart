@@ -33,8 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          Navigator.of(context)
-              .pushReplacementNamed('/home', arguments: state.user);
+          Navigator.of(
+            context,
+          ).pushReplacementNamed('/home', arguments: state.user);
         }
 
         if (state is AuthFailure) {
@@ -84,10 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Masuk untuk memantau tiket, membuat laporan baru, dan menjaga alur dukungan tetap rapi.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: HelpdeskTheme.onVariant, height: 1.5),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     AppTextField(
@@ -96,8 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
-                        if (!value.contains('@')) return 'Format email tidak valid';
+                        if (value == null || value.isEmpty)
+                          return 'Email tidak boleh kosong';
+                        if (!value.contains('@'))
+                          return 'Format email tidak valid';
                         return null;
                       },
                     ),
@@ -108,9 +114,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: Icons.lock_outline,
                       obscureText: true,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
-                        if (value.length < 8) return 'Password minimal 8 karakter';
-                        if (value.length > 72) return 'Password maksimal 72 karakter';
+                        if (value == null || value.isEmpty)
+                          return 'Password tidak boleh kosong';
+                        if (value.length < 8)
+                          return 'Password minimal 8 karakter';
+                        if (value.length > 72)
+                          return 'Password maksimal 72 karakter';
                         return null;
                       },
                     ),
@@ -128,7 +137,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 14),
                     Center(
                       child: TextButton(
-                        onPressed: () => Navigator.of(context).pushNamed('/register'),
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/register'),
                         child: const Text('Buat akun baru'),
                       ),
                     ),

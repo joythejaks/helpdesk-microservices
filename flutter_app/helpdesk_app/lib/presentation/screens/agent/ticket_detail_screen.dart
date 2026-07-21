@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/data/admin_repository.dart';
 import 'package:helpdesk_app/data/ticket_repository.dart';
 import 'package:helpdesk_app/models/app_user.dart';
@@ -36,7 +35,8 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   void initState() {
     super.initState();
     final authState = context.read<AuthBloc>().state;
-    if (authState is Authenticated && authState.user.role.toLowerCase() == 'admin') {
+    if (authState is Authenticated &&
+        authState.user.role.toLowerCase() == 'admin') {
       _loadAgents();
     }
     _loadAttachmentCount();
@@ -73,17 +73,19 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => CommentBloc(
-        ticketRepository: context.read<TicketRepository>(),
-      )..add(CommentsRequested(widget.ticket.id)),
+      create: (context) =>
+          CommentBloc(ticketRepository: context.read<TicketRepository>())
+            ..add(CommentsRequested(widget.ticket.id)),
       child: Scaffold(
-        backgroundColor: HelpdeskTheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: SafeArea(
           child: Builder(
             builder: (context) {
               final ticket = _liveTicket(context);
               final authState = context.watch<AuthBloc>().state;
-              final currentUser = authState is Authenticated ? authState.user : null;
+              final currentUser = authState is Authenticated
+                  ? authState.user
+                  : null;
 
               return Column(
                 children: [
@@ -98,15 +100,27 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                   ),
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
                       children: [
                         _buildStatusHeader(ticket),
                         const SizedBox(height: 24),
-                        Text('Judul Kendala', style: Theme.of(context).textTheme.titleSmall),
+                        Text(
+                          'Judul Kendala',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         const SizedBox(height: 8),
-                        Text(ticket.title, style: Theme.of(context).textTheme.headlineSmall),
+                        Text(
+                          ticket.title,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                         const SizedBox(height: 20),
-                        Text('Deskripsi', style: Theme.of(context).textTheme.titleSmall),
+                        Text(
+                          'Deskripsi',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         const SizedBox(height: 8),
                         SurfaceCard(
                           child: Text(
@@ -115,16 +129,25 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Text('Detail', style: Theme.of(context).textTheme.titleSmall),
+                        Text(
+                          'Detail',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         const SizedBox(height: 8),
                         SurfaceCard(child: _buildDetails(ticket)),
                         const SizedBox(height: 24),
-                        Text('Lampiran', style: Theme.of(context).textTheme.titleSmall),
+                        Text(
+                          'Lampiran',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         const SizedBox(height: 8),
                         SurfaceCard(
                           child: ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.attach_file, color: HelpdeskTheme.primary),
+                            leading: Icon(
+                              Icons.attach_file,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             title: Text(
                               _attachmentCount == null
                                   ? 'Memuat lampiran...'
@@ -138,13 +161,17 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        if (currentUser != null) ..._buildActions(context, ticket, currentUser),
+                        if (currentUser != null)
+                          ..._buildActions(context, ticket, currentUser),
                         const SizedBox(height: 8),
                         ..._buildTimeline(ticket),
                         const SizedBox(height: 8),
                         const Divider(),
                         const SizedBox(height: 24),
-                        Text('Percakapan & Aktivitas', style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Percakapan & Aktivitas',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 16),
                         ..._buildComments(context, currentUser),
                       ],
@@ -177,7 +204,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   Widget _buildStatusHeader(Ticket ticket) {
     return Row(
       children: [
-        _buildBadge(ticket.status, HelpdeskTheme.primary),
+        _buildBadge(ticket.status, Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
         _buildBadge(ticket.priority, Colors.orange),
       ],
@@ -188,13 +215,17 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 25),
+        color: color.withAlpha(25),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 127)),
+        border: Border.all(color: color.withAlpha(127)),
       ),
       child: Text(
         text,
-        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -225,7 +256,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     );
   }
 
-  List<Widget> _buildActions(BuildContext context, Ticket ticket, AppUser currentUser) {
+  List<Widget> _buildActions(
+    BuildContext context,
+    Ticket ticket,
+    AppUser currentUser,
+  ) {
     final role = currentUser.role.toLowerCase();
     final widgets = <Widget>[];
 
@@ -234,8 +269,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         GradientButton(
           label: 'Klaim Tiket',
           icon: Icons.assignment_ind_outlined,
-          onPressed: () => context.read<TicketBloc>().add(
-            TicketAssignRequested(ticketId: ticket.id),
+          onPressed: () => _confirmAssign(
+            context,
+            message: 'Yakin mau klaim tiket ini untuk diri sendiri?',
+            onConfirmed: () => context.read<TicketBloc>().add(
+              TicketAssignRequested(ticketId: ticket.id),
+            ),
           ),
         ),
       );
@@ -248,7 +287,10 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 initialValue: _selectedAgentId,
                 decoration: const InputDecoration(labelText: 'Pilih agent'),
                 items: _agents
-                    .map((a) => DropdownMenuItem(value: a.id, child: Text(a.email)))
+                    .map(
+                      (a) =>
+                          DropdownMenuItem(value: a.id, child: Text(a.email)),
+                    )
                     .toList(),
                 onChanged: (value) => setState(() => _selectedAgentId = value),
               ),
@@ -257,12 +299,21 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             FilledButton(
               onPressed: _selectedAgentId == null
                   ? null
-                  : () => context.read<TicketBloc>().add(
-                      TicketAssignRequested(
-                        ticketId: ticket.id,
-                        agentId: _selectedAgentId,
-                      ),
-                    ),
+                  : () {
+                      final agentEmail = _agents
+                          .firstWhere((a) => a.id == _selectedAgentId)
+                          .email;
+                      _confirmAssign(
+                        context,
+                        message: 'Yakin mau assign tiket ini ke $agentEmail?',
+                        onConfirmed: () => context.read<TicketBloc>().add(
+                          TicketAssignRequested(
+                            ticketId: ticket.id,
+                            agentId: _selectedAgentId,
+                          ),
+                        ),
+                      );
+                    },
               child: const Text('Assign'),
             ),
           ],
@@ -270,7 +321,8 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
       );
     }
 
-    final canTransition = role == 'admin' ||
+    final canTransition =
+        role == 'admin' ||
         (role == 'agent' && ticket.assignedAgentId == currentUser.id);
     if (canTransition && ticket.legalNextStatuses.isNotEmpty) {
       if (widgets.isNotEmpty) widgets.add(const SizedBox(height: 16));
@@ -294,26 +346,75 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     return [...widgets, const SizedBox(height: 8)];
   }
 
+  void _confirmAssign(
+    BuildContext context, {
+    required String message,
+    required VoidCallback onConfirmed,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi Assign'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              onConfirmed();
+            },
+            child: const Text('Ya, Assign'),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildTimeline(Ticket ticket) {
     final entries = <Widget>[];
     if (ticket.createdAt != null) {
-      entries.add(TimelineItem(title: 'Tiket dibuat', time: _formatDateTime(ticket.createdAt!)));
+      entries.add(
+        TimelineItem(
+          title: 'Tiket dibuat',
+          time: _formatDateTime(ticket.createdAt!),
+        ),
+      );
     }
     if (ticket.assignedAt != null) {
-      entries.add(TimelineItem(title: 'Ditugaskan ke agent', time: _formatDateTime(ticket.assignedAt!)));
+      entries.add(
+        TimelineItem(
+          title: 'Ditugaskan ke agent',
+          time: _formatDateTime(ticket.assignedAt!),
+        ),
+      );
     }
     if (ticket.resolvedAt != null) {
-      entries.add(TimelineItem(title: 'Ditandai selesai', time: _formatDateTime(ticket.resolvedAt!)));
+      entries.add(
+        TimelineItem(
+          title: 'Ditandai selesai',
+          time: _formatDateTime(ticket.resolvedAt!),
+        ),
+      );
     }
     if (ticket.closedAt != null) {
-      entries.add(TimelineItem(title: 'Tiket ditutup', time: _formatDateTime(ticket.closedAt!)));
+      entries.add(
+        TimelineItem(
+          title: 'Tiket ditutup',
+          time: _formatDateTime(ticket.closedAt!),
+        ),
+      );
     }
     return entries;
   }
 
   List<Widget> _buildComments(BuildContext context, AppUser? currentUser) {
-    final isStaff = currentUser != null &&
-        (currentUser.role.toLowerCase() == 'admin' || currentUser.role.toLowerCase() == 'agent');
+    final isStaff =
+        currentUser != null &&
+        (currentUser.role.toLowerCase() == 'admin' ||
+            currentUser.role.toLowerCase() == 'agent');
     return [
       BlocBuilder<CommentBloc, CommentState>(
         builder: (context, state) {
@@ -370,6 +471,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     bool isSystem = false,
     bool isInternal = false,
   }) {
+    final colors = Theme.of(context).colorScheme;
+    // The internal-note tile keeps a fixed pale-amber background in both
+    // themes (a "sticky note" visual, not a surface), so its text needs a
+    // fixed dark color instead of the ambient (theme-adaptive) one.
+    final textColor = isInternal ? Colors.black87 : colors.onSurface;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: isInternal ? const EdgeInsets.all(10) : EdgeInsets.zero,
@@ -384,7 +490,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            backgroundColor: isSystem ? Colors.grey[200] : HelpdeskTheme.primaryContainer,
+            backgroundColor: isSystem
+                ? colors.surfaceContainerHighest
+                : colors.primaryContainer,
             child: Icon(isSystem ? Icons.settings : Icons.person, size: 18),
           ),
           const SizedBox(width: 12),
@@ -394,27 +502,43 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               children: [
                 Row(
                   children: [
-                    Text(user, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      user,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
                     if (isInternal) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFB8860B),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           'Internal',
-                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                     const Spacer(),
-                    Text(time, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                    Text(
+                      time,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(msg, style: const TextStyle(height: 1.4)),
+                Text(msg, style: TextStyle(height: 1.4, color: textColor)),
               ],
             ),
           ),
@@ -429,8 +553,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       decoration: BoxDecoration(
-        color: HelpdeskTheme.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 13), blurRadius: 10, offset: const Offset(0, -5))],
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(13),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,9 +571,13 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               children: [
                 Checkbox(
                   value: _isInternal,
-                  onChanged: (value) => setState(() => _isInternal = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _isInternal = value ?? false),
                 ),
-                const Text('Catatan internal (staff only)', style: TextStyle(fontSize: 13)),
+                const Text(
+                  'Catatan internal (staff only)',
+                  style: TextStyle(fontSize: 13),
+                ),
               ],
             ),
           Row(
@@ -451,8 +585,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               Expanded(
                 child: AppTextField(
                   controller: _commentController,
-                  label: _isInternal ? 'Tulis catatan internal...' : 'Tulis balasan...',
-                  icon: _isInternal ? Icons.lock_outline : Icons.chat_bubble_outline,
+                  label: _isInternal
+                      ? 'Tulis catatan internal...'
+                      : 'Tulis balasan...',
+                  icon: _isInternal
+                      ? Icons.lock_outline
+                      : Icons.chat_bubble_outline,
                 ),
               ),
               const SizedBox(width: 12),
@@ -460,10 +598,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 builder: (context, state) {
                   final submitting = state is CommentSubmitting;
                   return IconButton.filled(
-                    onPressed: submitting ? null : () => _submitComment(context),
+                    onPressed: submitting
+                        ? null
+                        : () => _submitComment(context),
                     icon: const Icon(Icons.send),
                     style: IconButton.styleFrom(
-                      backgroundColor: _isInternal ? const Color(0xFFB8860B) : HelpdeskTheme.primary,
+                      backgroundColor: _isInternal
+                          ? const Color(0xFFB8860B)
+                          : Theme.of(context).colorScheme.primary,
                     ),
                   );
                 },

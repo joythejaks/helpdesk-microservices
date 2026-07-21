@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-
 class ProgressLine extends StatelessWidget {
   const ProgressLine({super.key, required this.label, required this.value});
 
@@ -10,6 +8,7 @@ class ProgressLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -36,8 +35,8 @@ class ProgressLine extends StatelessWidget {
             child: LinearProgressIndicator(
               value: value,
               minHeight: 8,
-              backgroundColor: HelpdeskTheme.surfaceHigh,
-              color: HelpdeskTheme.primaryContainer,
+              backgroundColor: colors.surfaceContainerHigh,
+              color: colors.primaryContainer,
             ),
           ),
         ],

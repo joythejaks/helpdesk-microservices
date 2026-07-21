@@ -39,9 +39,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Registrasi berhasil')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Registrasi berhasil')));
           Navigator.of(context).pop();
         }
 
@@ -97,10 +97,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Join the helpdesk systematic support network.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: HelpdeskTheme.onVariant, height: 1.5),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     AppTextField(
@@ -108,7 +111,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'Nama lengkap',
                       icon: Icons.person_outline,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Nama tidak boleh kosong';
+                        if (value == null || value.isEmpty)
+                          return 'Nama tidak boleh kosong';
                         return null;
                       },
                     ),
@@ -119,9 +123,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Email tidak boleh kosong';
-                        final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-                        if (!emailRegex.hasMatch(value)) return 'Format email tidak valid';
+                        if (value == null || value.isEmpty)
+                          return 'Email tidak boleh kosong';
+                        final emailRegex = RegExp(
+                          r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                        );
+                        if (!emailRegex.hasMatch(value))
+                          return 'Format email tidak valid';
                         return null;
                       },
                     ),
@@ -131,7 +139,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'Departemen',
                       icon: Icons.apartment_outlined,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Departemen tidak boleh kosong';
+                        if (value == null || value.isEmpty)
+                          return 'Departemen tidak boleh kosong';
                         return null;
                       },
                     ),
@@ -142,9 +151,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.lock_outline,
                       obscureText: true,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
-                        if (value.length < 8) return 'Password minimal 8 karakter';
-                        if (value.length > 72) return 'Password maksimal 72 karakter';
+                        if (value == null || value.isEmpty)
+                          return 'Password tidak boleh kosong';
+                        if (value.length < 8)
+                          return 'Password minimal 8 karakter';
+                        if (value.length > 72)
+                          return 'Password maksimal 72 karakter';
                         return null;
                       },
                     ),
@@ -184,6 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
   void _submitRegister() {
     if (_formKey.currentState!.validate()) {
       context.read<AuthBloc>().add(

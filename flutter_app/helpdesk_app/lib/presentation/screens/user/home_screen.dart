@@ -53,11 +53,14 @@ class HomeScreen extends StatelessWidget {
               BlocBuilder<NotificationBloc, NotificationState>(
                 builder: (context, notifState) => HeaderBar(
                   title: '${_greeting()}, User',
-                  subtitle: '${metrics.open} tiket aktif perlu dipantau hari ini',
+                  subtitle:
+                      '${metrics.open} tiket aktif perlu dipantau hari ini',
                   trailing: Icons.notifications_none,
                   trailingBadgeCount: notifState.unreadCount,
                   onTrailingTap: () {
-                    context.read<NotificationBloc>().add(const NotificationCleared());
+                    context.read<NotificationBloc>().add(
+                      const NotificationCleared(),
+                    );
                     Navigator.of(context).pushNamed('/notifications');
                   },
                 ),
@@ -135,7 +138,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  ({int open, int resolved, int urgent}) _calculateMetrics(List<Ticket> tickets) {
+  ({int open, int resolved, int urgent}) _calculateMetrics(
+    List<Ticket> tickets,
+  ) {
     int open = 0;
     int resolved = 0;
     int urgent = 0;

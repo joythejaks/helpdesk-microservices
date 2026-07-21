@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/models/report_summary.dart';
 import 'package:helpdesk_app/presentation/bloc/admin/admin_reports_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/notification/notification_bloc.dart';
@@ -34,8 +33,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   trailing: Icons.notifications_outlined,
                   trailingBadgeCount: notifState.unreadCount,
                   onTrailingTap: () {
-                    context.read<NotificationBloc>().add(const NotificationCleared());
-                    context.read<AdminReportsBloc>().add(const AdminReportsRequested());
+                    context.read<NotificationBloc>().add(
+                      const NotificationCleared(),
+                    );
+                    context.read<AdminReportsBloc>().add(
+                      const AdminReportsRequested(),
+                    );
                     Navigator.of(context).pushNamed('/notifications');
                   },
                 ),
@@ -93,7 +96,7 @@ class AdminDashboardScreen extends StatelessWidget {
       const SizedBox(height: 4),
       Text('7 hari terakhir', style: Theme.of(context).textTheme.bodySmall),
       const SizedBox(height: 12),
-      _buildTeamPerformanceChart(state.summary),
+      _buildTeamPerformanceChart(context, state.summary),
       const SizedBox(height: 24),
       _buildCriticalTrends(context, state.criticalTrend),
       const SizedBox(height: 24),
@@ -115,8 +118,14 @@ class AdminDashboardScreen extends StatelessWidget {
                           'Agent #${a.agentId}',
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
-                        DetailRow(label: 'Ditugaskan', value: '${a.totalAssigned}'),
-                        DetailRow(label: 'Selesai', value: '${a.totalResolved}'),
+                        DetailRow(
+                          label: 'Ditugaskan',
+                          value: '${a.totalAssigned}',
+                        ),
+                        DetailRow(
+                          label: 'Selesai',
+                          value: '${a.totalResolved}',
+                        ),
                         DetailRow(
                           label: 'Rata-rata penyelesaian',
                           value: _formatDuration(a.avgResolutionSeconds),
@@ -139,12 +148,18 @@ class AdminDashboardScreen extends StatelessWidget {
     return '${hours}j ${minutes}m';
   }
 
-  Widget _buildTeamPerformanceChart(List<ReportSummaryRow> summary) {
+  Widget _buildTeamPerformanceChart(
+    BuildContext context,
+    List<ReportSummaryRow> summary,
+  ) {
     final today = DateTime.now();
     final days = List.generate(
       7,
-      (i) => DateTime(today.year, today.month, today.day)
-          .subtract(Duration(days: 6 - i)),
+      (i) => DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).subtract(Duration(days: 6 - i)),
     );
     final totals = {for (final d in days) d: 0};
     for (final row in summary) {
@@ -204,7 +219,7 @@ class AdminDashboardScreen extends StatelessWidget {
                   barRods: [
                     BarChartRodData(
                       toY: totals[days[i]]!.toDouble(),
-                      color: HelpdeskTheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       width: 16,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -226,7 +241,10 @@ class AdminDashboardScreen extends StatelessWidget {
             children: [
               const Icon(Icons.warning_amber_rounded, color: Colors.deepOrange),
               const SizedBox(width: 8),
-              Text('Critical Ticket Trends', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Critical Ticket Trends',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -238,23 +256,25 @@ class AdminDashboardScreen extends StatelessWidget {
           if (trend.tickets.isEmpty)
             const Text('Tidak ada tiket High-priority baru.')
           else
-            ...trend.tickets.take(5).map(
-              (t) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(t.title, overflow: TextOverflow.ellipsis),
+            ...trend.tickets
+                .take(5)
+                .map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(t.title, overflow: TextOverflow.ellipsis),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _relativeTime(t.createdAt),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _relativeTime(t.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
         ],
       ),
     );

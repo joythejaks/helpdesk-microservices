@@ -84,8 +84,7 @@ class _TicketListScreenState extends State<TicketListScreen> {
               const SizedBox(height: 16),
               StatusFilter(
                 selected: _selectedFilter,
-                onSelected: (value) =>
-                    setState(() => _selectedFilter = value),
+                onSelected: (value) => setState(() => _selectedFilter = value),
               ),
               const SizedBox(height: 20),
               if (state is TicketLoading)

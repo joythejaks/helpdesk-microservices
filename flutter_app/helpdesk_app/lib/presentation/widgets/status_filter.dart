@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-
 class StatusFilter extends StatelessWidget {
   const StatusFilter({
     super.key,
@@ -24,6 +22,7 @@ class StatusFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -35,9 +34,7 @@ class StatusFilter extends StatelessWidget {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? HelpdeskTheme.primary
-                  : HelpdeskTheme.surfaceHigh,
+              color: isSelected ? colors.primary : colors.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -45,7 +42,7 @@ class StatusFilter extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : HelpdeskTheme.onVariant,
+                color: isSelected ? colors.onPrimary : colors.onSurfaceVariant,
               ),
             ),
           ),

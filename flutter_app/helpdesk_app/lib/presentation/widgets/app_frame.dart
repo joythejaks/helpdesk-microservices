@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-
 class AppFrame extends StatelessWidget {
   const AppFrame({super.key, required this.child});
 
@@ -10,7 +8,7 @@ class AppFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: HelpdeskTheme.surface,
+      color: Theme.of(context).colorScheme.surface,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 430),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/data/auth_repository.dart';
 import 'package:helpdesk_app/models/app_user.dart';
 import 'package:helpdesk_app/presentation/bloc/auth/auth_bloc.dart';
 import 'package:helpdesk_app/presentation/bloc/profile/profile_bloc.dart';
+import 'package:helpdesk_app/presentation/bloc/theme/theme_cubit.dart';
 import 'package:helpdesk_app/presentation/widgets/app_text_field.dart';
 import 'package:helpdesk_app/presentation/widgets/header_bar.dart';
 import 'package:helpdesk_app/presentation/widgets/surface_card.dart';
@@ -22,7 +22,8 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ProfileBloc(authRepository: context.read<AuthRepository>()),
+      create: (context) =>
+          ProfileBloc(authRepository: context.read<AuthRepository>()),
       child: const _ProfileView(),
     );
   }
@@ -52,9 +53,9 @@ class _ProfileViewState extends State<_ProfileView> {
       listener: (context, state) {
         if (state is ProfileUpdated) {
           setState(() => _user = state.user);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profil diperbarui')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Profil diperbarui')));
         }
         if (state is PasswordChanged) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -70,7 +71,10 @@ class _ProfileViewState extends State<_ProfileView> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 42, 20, 112),
         children: [
-          const HeaderBar(title: 'Profile', subtitle: 'Kelola akun & preferensi kamu'),
+          const HeaderBar(
+            title: 'Profile',
+            subtitle: 'Kelola akun & preferensi kamu',
+          ),
           const SizedBox(height: 22),
           if (user != null) _buildAccountCard(context, user),
           const SizedBox(height: 22),
@@ -78,24 +82,36 @@ class _ProfileViewState extends State<_ProfileView> {
           const SizedBox(height: 8),
           _buildAvailabilitySelector(context, user),
           const SizedBox(height: 24),
-          Text('Account Settings', style: Theme.of(context).textTheme.titleSmall),
+          Text('Appearance', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _buildAppearanceSelector(context),
+          const SizedBox(height: 24),
+          Text(
+            'Account Settings',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 8),
           SurfaceCard(
             child: Column(
               children: [
                 _buildSettingsTile(
+                  context,
                   icon: Icons.person_outline,
                   label: 'Edit Profile',
-                  onTap: user == null ? null : () => _showEditProfileDialog(context, user),
+                  onTap: user == null
+                      ? null
+                      : () => _showEditProfileDialog(context, user),
                 ),
                 const Divider(height: 1),
                 _buildSettingsTile(
+                  context,
                   icon: Icons.lock_outline,
                   label: 'Change Password',
                   onTap: () => _showChangePasswordDialog(context),
                 ),
                 const Divider(height: 1),
                 _buildSettingsTile(
+                  context,
                   icon: Icons.notifications_outlined,
                   label: 'Notification Preferences',
                   subtitle: 'Segera hadir',
@@ -111,7 +127,7 @@ class _ProfileViewState extends State<_ProfileView> {
               foregroundColor: Colors.red,
               side: const BorderSide(color: Colors.red),
             ),
-            onPressed: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),
+            onPressed: () => _confirmLogout(context),
             icon: const Icon(Icons.logout),
             label: const Text('Log Out'),
           ),
@@ -121,13 +137,14 @@ class _ProfileViewState extends State<_ProfileView> {
   }
 
   Widget _buildAccountCard(BuildContext context, AppUser user) {
+    final colors = Theme.of(context).colorScheme;
     return SurfaceCard(
       child: Column(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 36,
-            backgroundColor: HelpdeskTheme.primaryContainer,
-            child: Icon(Icons.person, size: 36, color: HelpdeskTheme.primary),
+            backgroundColor: colors.primaryContainer,
+            child: Icon(Icons.person, size: 36, color: colors.primary),
           ),
           const SizedBox(height: 14),
           Text(
@@ -140,13 +157,13 @@ class _ProfileViewState extends State<_ProfileView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: HelpdeskTheme.primary.withValues(alpha: 25),
+              color: colors.primary.withAlpha(25),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               user.role[0].toUpperCase() + user.role.substring(1),
-              style: const TextStyle(
-                color: HelpdeskTheme.primary,
+              style: TextStyle(
+                color: colors.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
@@ -168,8 +185,9 @@ class _ProfileViewState extends State<_ProfileView> {
             return ChoiceChip(
               label: Text(label),
               selected: current == value,
-              onSelected: (_) =>
-                  context.read<ProfileBloc>().add(AvailabilityChangeSubmitted(value)),
+              onSelected: (_) => context.read<ProfileBloc>().add(
+                AvailabilityChangeSubmitted(value),
+              ),
             );
           }).toList(),
         );
@@ -177,14 +195,35 @@ class _ProfileViewState extends State<_ProfileView> {
     );
   }
 
-  Widget _buildSettingsTile({
+  Widget _buildAppearanceSelector(BuildContext context) {
+    final current = context.watch<ThemeCubit>().state;
+    const options = [
+      (ThemeMode.system, 'System'),
+      (ThemeMode.light, 'Light'),
+      (ThemeMode.dark, 'Dark'),
+    ];
+    return Wrap(
+      spacing: 8,
+      children: options.map((opt) {
+        final (mode, label) = opt;
+        return ChoiceChip(
+          label: Text(label),
+          selected: current == mode,
+          onSelected: (_) => context.read<ThemeCubit>().setThemeMode(mode),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSettingsTile(
+    BuildContext context, {
     required IconData icon,
     required String label,
     String? subtitle,
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: HelpdeskTheme.primary),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(label),
       subtitle: subtitle != null ? Text(subtitle) : null,
       trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
@@ -212,7 +251,8 @@ class _ProfileViewState extends State<_ProfileView> {
                 controller: nameController,
                 label: 'Nama',
                 icon: Icons.person_outline,
-                validator: (v) => (v == null || v.isEmpty) ? 'Nama tidak boleh kosong' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Nama tidak boleh kosong' : null,
               ),
               const SizedBox(height: 12),
               AppTextField(
@@ -246,6 +286,31 @@ class _ProfileViewState extends State<_ProfileView> {
     );
   }
 
+  void _confirmLogout(BuildContext context) {
+    final authBloc = context.read<AuthBloc>();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Yakin mau logout dari akun ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              authBloc.add(const AuthLogoutRequested());
+            },
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showChangePasswordDialog(BuildContext context) {
     final oldController = TextEditingController();
     final newController = TextEditingController();
@@ -266,7 +331,8 @@ class _ProfileViewState extends State<_ProfileView> {
                 label: 'Password lama',
                 icon: Icons.lock_outline,
                 obscureText: true,
-                validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 12),
               AppTextField(

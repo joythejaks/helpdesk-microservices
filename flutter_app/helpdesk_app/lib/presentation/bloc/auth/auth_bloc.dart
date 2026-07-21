@@ -90,19 +90,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
+    // hasSession()/getCurrentUser() usually resolve near-instantly (cached
+    // local storage), which would skip past the splash screen before the
+    // user ever sees it. Hold it on screen for a minimum, perceptible beat.
+    final minSplashDuration = Future.delayed(
+      const Duration(milliseconds: 1400),
+    );
 
     final hasSession = await _authRepository.hasSession();
     if (!hasSession) {
+      await minSplashDuration;
       emit(const Unauthenticated());
       return;
     }
 
     try {
       final user = await _authRepository.getCurrentUser();
+      await minSplashDuration;
       emit(Authenticated(user));
     } catch (_) {
       // Stored token is invalid/expired — clear it and send them to login.
       await _authRepository.logout();
+      await minSplashDuration;
       emit(const Unauthenticated());
     }
   }

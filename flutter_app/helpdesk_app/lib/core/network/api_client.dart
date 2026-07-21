@@ -127,7 +127,8 @@ class ApiClient {
 
     return (
       bytes: response.bodyBytes,
-      contentType: response.headers['content-type'] ?? 'application/octet-stream',
+      contentType:
+          response.headers['content-type'] ?? 'application/octet-stream',
     );
   }
 

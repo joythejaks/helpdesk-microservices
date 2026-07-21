@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:helpdesk_app/core/theme/helpdesk_theme.dart';
 import 'package:helpdesk_app/models/ticket.dart';
 import 'package:helpdesk_app/presentation/bloc/ticket/ticket_bloc.dart';
 import 'package:helpdesk_app/presentation/widgets/app_frame.dart';
@@ -46,6 +45,7 @@ class _DashboardShellState extends State<DashboardShell> {
       const ProfileScreen(),
     ];
 
+    final colors = Theme.of(context).colorScheme;
     return AppFrame(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -53,8 +53,8 @@ class _DashboardShellState extends State<DashboardShell> {
         floatingActionButton: (index == 0 || index == 1)
             ? FloatingActionButton(
                 onPressed: () => setState(() => index = 2),
-                backgroundColor: HelpdeskTheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
                 child: const Icon(Icons.add),
               )
             : null,

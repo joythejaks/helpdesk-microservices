@@ -68,7 +68,11 @@ class AttachmentBloc extends Bloc<AttachmentEvent, AttachmentState> {
   ) async {
     emit(const AttachmentLoading());
     try {
-      emit(AttachmentLoaded(await _ticketRepository.getAttachments(event.ticketId)));
+      emit(
+        AttachmentLoaded(
+          await _ticketRepository.getAttachments(event.ticketId),
+        ),
+      );
     } catch (error) {
       emit(AttachmentFailure(error.toString()));
     }

@@ -18,6 +18,7 @@ class GlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
       child: ClipRRect(
@@ -25,7 +26,7 @@ class GlassNavBar extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            color: HelpdeskTheme.surfaceLowest.withValues(alpha: .86),
+            color: colors.surfaceContainerLowest.withValues(alpha: .86),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -35,6 +36,9 @@ class GlassNavBar extends StatelessWidget {
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
+                      // The active pill intentionally uses the brand's
+                      // Fixed pair (not the adaptive colorScheme) so it
+                      // reads identically as a light accent in both themes.
                       color: i == index
                           ? HelpdeskTheme.primaryFixed
                           : Colors.transparent,
@@ -45,10 +49,10 @@ class GlassNavBar extends StatelessWidget {
                       isSelected: i == index,
                       selectedIcon: Icon(
                         items[i].$1,
-                        color: HelpdeskTheme.primary,
+                        color: HelpdeskTheme.onPrimaryFixed,
                       ),
                       onPressed: () => onChanged(i),
-                      icon: Icon(items[i].$1, color: HelpdeskTheme.onVariant),
+                      icon: Icon(items[i].$1, color: colors.onSurfaceVariant),
                     ),
                   ),
               ],

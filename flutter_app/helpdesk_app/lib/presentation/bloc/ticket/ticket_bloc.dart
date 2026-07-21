@@ -189,16 +189,17 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     _ => <Ticket>[],
   };
 
-  Future<List<Ticket>> _fetch(TicketsRequested r) => _ticketRepository.getTickets(
-    page: r.page,
-    limit: r.limit,
-    scope: r.scope,
-    status: r.status,
-    priority: r.priority,
-    department: r.department,
-    search: r.search,
-    overdue: r.overdue,
-    from: r.from,
-    to: r.to,
-  );
+  Future<List<Ticket>> _fetch(TicketsRequested r) =>
+      _ticketRepository.getTickets(
+        page: r.page,
+        limit: r.limit,
+        scope: r.scope,
+        status: r.status,
+        priority: r.priority,
+        department: r.department,
+        search: r.search,
+        overdue: r.overdue,
+        from: r.from,
+        to: r.to,
+      );
 }

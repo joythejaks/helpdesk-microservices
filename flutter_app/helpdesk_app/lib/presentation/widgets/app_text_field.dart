@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,
@@ -31,7 +29,7 @@ class AppTextField extends StatelessWidget {
       maxLines: obscureText ? 1 : maxLines,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: HelpdeskTheme.primary),
+        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
       ),
       validator: validator,
     );

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/helpdesk_theme.dart';
-
 class TimelineItem extends StatelessWidget {
   const TimelineItem({super.key, required this.title, required this.time});
 
@@ -14,7 +12,10 @@ class TimelineItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: HelpdeskTheme.primaryContainer),
+          Icon(
+            Icons.check_circle,
+            color: Theme.of(context).colorScheme.primaryContainer,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

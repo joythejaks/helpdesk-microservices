@@ -15,6 +15,7 @@ import 'models/app_user.dart';
 import 'models/ticket.dart';
 import 'presentation/bloc/auth/auth_bloc.dart';
 import 'presentation/bloc/notification/notification_bloc.dart';
+import 'presentation/bloc/theme/theme_cubit.dart';
 import 'presentation/bloc/ticket/ticket_bloc.dart';
 import 'presentation/navigation/role_router.dart';
 import 'presentation/screens/agent/ticket_detail_screen.dart';
@@ -31,6 +32,9 @@ void main() {
 class HelpdeskApp extends StatelessWidget {
   const HelpdeskApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
@@ -38,7 +42,9 @@ class HelpdeskApp extends StatelessWidget {
         RepositoryProvider(create: (_) => ApiClient()),
         RepositoryProvider(create: (_) => NotificationApiClient()),
         RepositoryProvider(create: (_) => TokenStorage()),
-        RepositoryProvider(create: (_) => WebSocketService(url: EnvConfig.wsUrl)),
+        RepositoryProvider(
+          create: (_) => WebSocketService(url: EnvConfig.wsUrl),
+        ),
         RepositoryProvider(
           create: (context) => AuthRepository(
             apiClient: context.read<ApiClient>(),
@@ -82,6 +88,7 @@ class HelpdeskApp extends StatelessWidget {
               ticketBloc: context.read<TicketBloc>(),
             ),
           ),
+          BlocProvider(create: (_) => ThemeCubit()),
         ],
         child: MultiBlocListener(
           listeners: [
@@ -89,45 +96,61 @@ class HelpdeskApp extends StatelessWidget {
               listener: (context, state) async {
                 final notifications = context.read<NotificationBloc>();
                 if (state is Authenticated) {
-                  final token = await context.read<TokenStorage>().readAccessToken();
+                  final token = await context
+                      .read<TokenStorage>()
+                      .readAccessToken();
                   if (token != null && token.isNotEmpty) {
                     notifications.add(NotificationConnectRequested(token));
                   }
+                  navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                    '/home',
+                    (route) => false,
+                    arguments: state.user,
+                  );
                 } else if (state is Unauthenticated) {
                   notifications.add(const NotificationDisconnectRequested());
+                  navigatorKey.currentState?.pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
                 }
               },
             ),
           ],
-          child: MaterialApp(
-            title: 'Helpdesk Ticketing System',
-            debugShowCheckedModeBanner: false,
-            theme: HelpdeskTheme.light(),
-            initialRoute: '/splash',
-            routes: {
-              '/splash': (context) => const SplashScreen(),
-              '/login': (context) => const LoginScreen(),
-              '/register': (context) => const RegisterScreen(),
-              '/notifications': (context) => const NotificationsScreen(),
-            },
-            onGenerateRoute: (settings) {
-              switch (settings.name) {
-                case '/ticket-detail':
-                  final ticket = settings.arguments as Ticket;
-                  return MaterialPageRoute(
-                    builder: (_) => TicketDetailScreen(ticket: ticket),
-                  );
-                case '/home':
-                  final user = settings.arguments as AppUser;
-                  return MaterialPageRoute(builder: (_) => homeForRole(user));
-                case '/ticket-attachments':
-                  final ticketId = settings.arguments as String;
-                  return MaterialPageRoute(
-                    builder: (_) => AttachmentsScreen(ticketId: ticketId),
-                  );
-              }
-              return null;
-            },
+          child: BlocBuilder<ThemeCubit, ThemeMode>(
+            builder: (context, themeMode) => MaterialApp(
+              navigatorKey: navigatorKey,
+              title: 'Helpdesk Ticketing System',
+              debugShowCheckedModeBanner: false,
+              theme: HelpdeskTheme.light(),
+              darkTheme: HelpdeskTheme.dark(),
+              themeMode: themeMode,
+              initialRoute: '/splash',
+              routes: {
+                '/splash': (context) => const SplashScreen(),
+                '/login': (context) => const LoginScreen(),
+                '/register': (context) => const RegisterScreen(),
+                '/notifications': (context) => const NotificationsScreen(),
+              },
+              onGenerateRoute: (settings) {
+                switch (settings.name) {
+                  case '/ticket-detail':
+                    final ticket = settings.arguments as Ticket;
+                    return MaterialPageRoute(
+                      builder: (_) => TicketDetailScreen(ticket: ticket),
+                    );
+                  case '/home':
+                    final user = settings.arguments as AppUser;
+                    return MaterialPageRoute(builder: (_) => homeForRole(user));
+                  case '/ticket-attachments':
+                    final ticketId = settings.arguments as String;
+                    return MaterialPageRoute(
+                      builder: (_) => AttachmentsScreen(ticketId: ticketId),
+                    );
+                }
+                return null;
+              },
+            ),
           ),
         ),
       ),

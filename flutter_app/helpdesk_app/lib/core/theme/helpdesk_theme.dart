@@ -56,6 +56,24 @@ class HelpdeskTheme {
   static const surfaceHigh = surfaceContainerHigh;
   static const onVariant = onSurfaceVariant;
 
+  // Dark mode surface tones — the light-mode "Fixed"/"FixedDim" tokens above
+  // are already brand-consistent across brightness, so dark mode reuses them
+  // for primary/secondary/tertiary instead of inventing a new brand palette.
+  static const darkSurface = Color(0xFF12151A);
+  static const darkSurfaceContainerLowest = Color(0xFF0C0F13);
+  static const darkSurfaceContainerLow = Color(0xFF181B21);
+  static const darkSurfaceContainer = Color(0xFF1C2027);
+  static const darkSurfaceContainerHigh = Color(0xFF262B33);
+  static const darkSurfaceContainerHighest = Color(0xFF30363F);
+  static const darkOnSurface = Color(0xFFE2E2E6);
+  static const darkOnSurfaceVariant = Color(0xFFC0C7D1);
+  static const darkOutline = Color(0xFF8B929C);
+  static const darkOutlineVariant = Color(0xFF414750);
+  static const darkError = Color(0xFFFFB4AB);
+  static const darkOnError = Color(0xFF690005);
+  static const darkErrorContainer = Color(0xFF93000A);
+  static const darkOnErrorContainer = Color(0xFFFFDAD6);
+
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
       seedColor: primaryContainer,
@@ -67,9 +85,30 @@ class HelpdeskTheme {
       useMaterial3: true,
       colorScheme: scheme.copyWith(
         primary: primary,
+        onPrimary: onPrimary,
         primaryContainer: primaryContainer,
+        onPrimaryContainer: onPrimaryContainer,
+        secondary: secondary,
+        onSecondary: onSecondary,
+        secondaryContainer: secondaryContainer,
+        onSecondaryContainer: onSecondaryContainer,
+        tertiary: tertiary,
+        onTertiary: onTertiary,
+        tertiaryContainer: tertiaryContainer,
+        onTertiaryContainer: onTertiaryContainer,
+        error: error,
+        onError: onError,
+        errorContainer: errorContainer,
+        onErrorContainer: onErrorContainer,
         surface: surface,
         onSurface: onSurface,
+        surfaceContainerLowest: surfaceContainerLowest,
+        surfaceContainerLow: surfaceContainerLow,
+        surfaceContainer: surfaceContainer,
+        surfaceContainerHigh: surfaceContainerHigh,
+        surfaceContainerHighest: surfaceContainerHighest,
+        outline: outline,
+        outlineVariant: outlineVariant,
       ),
       scaffoldBackgroundColor: surface,
       fontFamily: 'Inter',
@@ -119,6 +158,133 @@ class HelpdeskTheme {
           horizontal: 16,
           vertical: 15,
         ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceContainerHigh,
+        selectedColor: primaryFixed,
+        labelStyle: const TextStyle(
+          color: onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          color: onPrimaryFixed,
+          fontWeight: FontWeight.w600,
+        ),
+        checkmarkColor: primary,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  static ThemeData dark() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: primaryContainer,
+      brightness: Brightness.dark,
+      surface: darkSurface,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme.copyWith(
+        primary: primaryFixedDim,
+        onPrimary: onPrimaryFixed,
+        primaryContainer: onPrimaryFixedVariant,
+        onPrimaryContainer: primaryFixed,
+        secondary: secondaryFixedDim,
+        onSecondary: onSecondaryFixed,
+        secondaryContainer: onSecondaryFixedVariant,
+        onSecondaryContainer: secondaryFixed,
+        tertiary: tertiaryFixedDim,
+        onTertiary: onTertiaryFixed,
+        tertiaryContainer: onTertiaryFixedVariant,
+        onTertiaryContainer: tertiaryFixed,
+        error: darkError,
+        onError: darkOnError,
+        errorContainer: darkErrorContainer,
+        onErrorContainer: darkOnErrorContainer,
+        surface: darkSurface,
+        onSurface: darkOnSurface,
+        surfaceContainerLowest: darkSurfaceContainerLowest,
+        surfaceContainerLow: darkSurfaceContainerLow,
+        surfaceContainer: darkSurfaceContainer,
+        surfaceContainerHigh: darkSurfaceContainerHigh,
+        surfaceContainerHighest: darkSurfaceContainerHighest,
+        outline: darkOutline,
+        outlineVariant: darkOutlineVariant,
+      ),
+      scaffoldBackgroundColor: darkSurface,
+      fontFamily: 'Inter',
+      textTheme: const TextTheme(
+        displayMedium: TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 42,
+          height: 1,
+          fontWeight: FontWeight.w800,
+          color: darkOnSurface,
+        ),
+        headlineMedium: TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 28,
+          height: 1.12,
+          fontWeight: FontWeight.w800,
+          color: darkOnSurface,
+        ),
+        titleLarge: TextStyle(
+          fontFamily: 'Manrope',
+          fontSize: 21,
+          fontWeight: FontWeight.w800,
+          color: darkOnSurface,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: darkOnSurface,
+        ),
+        bodyMedium: TextStyle(fontSize: 14, height: 1.45, color: darkOnSurface),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          height: 1.35,
+          color: darkOnSurfaceVariant,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: darkOnSurface,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurfaceContainerHigh,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        labelStyle: const TextStyle(color: darkOnSurfaceVariant),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: primaryFixedDim.withAlpha(120)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: darkSurfaceContainerHigh,
+        selectedColor: onPrimaryFixedVariant,
+        labelStyle: const TextStyle(
+          color: darkOnSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          color: primaryFixed,
+          fontWeight: FontWeight.w600,
+        ),
+        checkmarkColor: primaryFixedDim,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
