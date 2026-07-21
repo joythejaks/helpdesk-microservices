@@ -8,7 +8,14 @@ import (
 )
 
 const (
+	// queueName is the durable, competing-consumers queue used for
+	// notification-service's DB persistence (exactly-once across
+	// replicas). eventsExchange is a fanout exchange every
+	// notification-service replica also binds its own exclusive queue to,
+	// for local WebSocket delivery (at-least-once-per-replica) — see
+	// notification-service/internal/consumer/consumer.go.
 	queueName         = "ticket_created"
+	eventsExchange    = "ticket_events"
 	maxStartupRetries = 15
 	startupRetryDelay = 2 * time.Second
 	reconnectDelay    = 3 * time.Second
@@ -56,8 +63,23 @@ func (p *Publisher) connect() error {
 		return err
 	}
 
-	_, err = ch.QueueDeclare(queueName, true, false, false, false, nil)
+	if err := ch.ExchangeDeclare(eventsExchange, "fanout", true, false, false, false, nil); err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	q, err := ch.QueueDeclare(queueName, true, false, false, false, nil)
 	if err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	// The persistence queue is bound to the fanout exchange too, so it
+	// keeps receiving every event unchanged — only the publish target
+	// below actually moves from "direct to queue" to "via the exchange".
+	if err := ch.QueueBind(q.Name, "", eventsExchange, false, nil); err != nil {
 		ch.Close()
 		conn.Close()
 		return err
@@ -91,8 +113,8 @@ func (p *Publisher) Publish(message string) error {
 	}
 
 	err := p.ch.Publish(
+		eventsExchange,
 		"",
-		queueName,
 		false,
 		false,
 		amqp091.Publishing{
@@ -108,7 +130,7 @@ func (p *Publisher) Publish(message string) error {
 			return nil
 		}
 		// retry once after reconnect
-		return p.ch.Publish("", queueName, false, false, amqp091.Publishing{
+		return p.ch.Publish(eventsExchange, "", false, false, amqp091.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
 		})
