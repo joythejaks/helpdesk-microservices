@@ -119,6 +119,26 @@ services:
       - auth-service
       - ticket-service
 
+  # TLS-fronted alternative entry point — api-gateway's own :8080 mapping
+  # above is untouched, so existing curl/dev workflows keep working
+  # unchanged. See Caddyfile for the localhost -> real-domain swap note.
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      # Port 80 intentionally not published: local_certs (see Caddyfile)
+      # doesn't need an ACME HTTP-01 challenge, so it's unused here. Add
+      # "80:80" back once this runs behind a real domain with real
+      # Let's Encrypt certs — Caddy needs it then for both the challenge
+      # and the automatic http->https redirect.
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api-gateway
+
   prometheus:
     image: prom/prometheus:v2.55.1
     restart: unless-stopped
@@ -156,3 +176,5 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
+  caddy_data:
+  caddy_config:

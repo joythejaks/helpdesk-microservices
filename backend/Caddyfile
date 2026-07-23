@@ -1,0 +1,13 @@
+{
+	# Local dev: Caddy generates and locally-trusts its own CA so
+	# https://localhost gets a real (if not publicly trusted) padlock with
+	# zero manual cert handling. Once this is deployed behind a real
+	# domain, delete this global block and change the site address below
+	# from "localhost" to the domain — Caddy will then fetch a real
+	# Let's Encrypt certificate automatically, no other change needed.
+	local_certs
+}
+
+localhost {
+	reverse_proxy api-gateway:8080
+}
