@@ -17,9 +17,11 @@ import (
 	"notification-service/internal/usecase"
 	"notification-service/pkg/config"
 	"notification-service/pkg/logger"
+	"notification-service/pkg/metrics"
 	"notification-service/pkg/response"
 
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -78,19 +80,21 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	mux.Handle("/metrics", promhttp.Handler())
+
 	// REST notifications API — self-authenticated (Authorization: Bearer),
 	// same trust model as /ws since this service was never put behind the
 	// gateway (the reverse proxy doesn't handle WS upgrades).
-	mux.HandleFunc("GET /notifications", notificationHandler.List)
-	mux.HandleFunc("PATCH /notifications/read-all", notificationHandler.MarkAllRead)
-	mux.HandleFunc("PATCH /notifications/{id}/read", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /notifications", metrics.Wrap("GET /notifications", notificationHandler.List))
+	mux.HandleFunc("PATCH /notifications/read-all", metrics.Wrap("PATCH /notifications/read-all", notificationHandler.MarkAllRead))
+	mux.HandleFunc("PATCH /notifications/{id}/read", metrics.Wrap("PATCH /notifications/{id}/read", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseUint(r.PathValue("id"), 10, 0)
 		if err != nil {
 			response.Error(w, http.StatusBadRequest, "invalid notification id", "BAD_REQUEST")
 			return
 		}
 		notificationHandler.MarkRead(w, r, uint(id))
-	})
+	}))
 
 	go ws.HandleMessages()
 

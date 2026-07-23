@@ -14,12 +14,14 @@ import (
 
 	"api-gateway/pkg/config"
 	"api-gateway/pkg/logger"
+	"api-gateway/pkg/metrics"
 	"api-gateway/pkg/response"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,6 +66,8 @@ func main() {
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Authorization", "Content-Type", "X-Request-ID"},
 	}))
+	r.Use(metrics.GinMiddleware())
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// =======================
 	// FIX REDIRECT LOOP

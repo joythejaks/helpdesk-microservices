@@ -15,10 +15,12 @@ import (
 	"ticket-service/internal/usecase"
 	"ticket-service/pkg/config"
 	"ticket-service/pkg/logger"
+	"ticket-service/pkg/metrics"
 	"ticket-service/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -78,6 +80,9 @@ func main() {
 
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
+
+	r.Use(metrics.GinMiddleware())
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// health — intentionally outside the internal-secret gate so the
 	// container's own HEALTHCHECK (calling itself over localhost) still works.

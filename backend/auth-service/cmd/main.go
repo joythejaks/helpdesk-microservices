@@ -7,6 +7,7 @@ import (
 	"auth-service/internal/usecase"
 	"auth-service/pkg/config"
 	"auth-service/pkg/logger"
+	"auth-service/pkg/metrics"
 	"context"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	_ "auth-service/docs" // Ini akan terisi otomatis setelah menjalankan 'swag init'
 
@@ -70,6 +72,9 @@ func main() {
 	handler := delivery.NewAuthHandler(usecase, refreshRepo, jwtSecret, db)
 
 	r := gin.Default()
+
+	r.Use(metrics.GinMiddleware())
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Swagger UI hanya di-mount kalau eksplisit diaktifkan (dev only) — jangan
 	// expose skema API ke publik secara default.
