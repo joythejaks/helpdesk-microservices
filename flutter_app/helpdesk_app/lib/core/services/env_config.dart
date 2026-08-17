@@ -14,5 +14,9 @@ class EnvConfig {
     defaultValue: false,
   );
 
-  static const String sentryDsn = 'YOUR_SENTRY_DSN_HERE';
+  // Empty by default — sentry_flutter no-ops (logs a warning, sends
+  // nothing) when initialized with no DSN, so builds without one
+  // (including CI) stay safe. Set via --dart-define=SENTRY_DSN=... once
+  // a real Sentry project exists.
+  static const String sentryDsn = String.fromEnvironment('SENTRY_DSN');
 }

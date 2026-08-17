@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/network/api_client.dart';
 import 'core/network/notification_api_client.dart';
@@ -25,8 +26,17 @@ import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 import 'presentation/screens/notification/notifications_screen.dart';
 
-void main() {
-  runApp(const HelpdeskApp());
+Future<void> main() async {
+  // SentryFlutter.init wires FlutterError.onError and
+  // PlatformDispatcher.instance.onError for us (via its appRunner zone) —
+  // an uncaught error used to show a blank grey screen in release mode
+  // and get reported to nobody. No-ops safely (logs a debug warning,
+  // sends nothing) when sentryDsn is empty, so builds without a DSN
+  // configured — including CI — are unaffected.
+  await SentryFlutter.init((options) {
+    options.dsn = EnvConfig.sentryDsn;
+    options.environment = EnvConfig.isProduction ? 'production' : 'development';
+  }, appRunner: () => runApp(const HelpdeskApp()));
 }
 
 class HelpdeskApp extends StatelessWidget {
