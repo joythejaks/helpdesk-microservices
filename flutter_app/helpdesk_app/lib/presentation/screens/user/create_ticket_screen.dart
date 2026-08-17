@@ -60,8 +60,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               label: 'Judul kendala',
               icon: Icons.subject,
               validator: (value) {
-                if (value == null || value.isEmpty)
+                if (value == null || value.isEmpty) {
                   return 'Judul tidak boleh kosong';
+                }
                 return null;
               },
             ),
@@ -72,8 +73,9 @@ class _CreateTicketScreenState extends State<CreateTicketScreen> {
               icon: Icons.notes,
               maxLines: 5,
               validator: (value) {
-                if (value == null || value.isEmpty)
+                if (value == null || value.isEmpty) {
                   return 'Deskripsi tidak boleh kosong';
+                }
                 return null;
               },
             ),

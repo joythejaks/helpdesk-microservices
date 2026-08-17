@@ -64,13 +64,15 @@ class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
                 icon: Icons.mail_outline,
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Email tidak boleh kosong';
+                  }
                   final emailRegex = RegExp(
                     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
                   );
-                  if (!emailRegex.hasMatch(value))
+                  if (!emailRegex.hasMatch(value)) {
                     return 'Format email tidak valid';
+                  }
                   return null;
                 },
               ),
@@ -81,8 +83,9 @@ class _StaffProvisioningScreenState extends State<StaffProvisioningScreen> {
                 icon: Icons.lock_outline,
                 obscureText: true,
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Password tidak boleh kosong';
+                  }
                   if (value.length < 8) return 'Password minimal 8 karakter';
                   if (value.length > 72) return 'Password maksimal 72 karakter';
                   return null;

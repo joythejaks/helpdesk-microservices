@@ -29,7 +29,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Helpdesk\nTicketing'), findsOneWidget);
+    expect(find.text('Welcome Back!'), findsOneWidget);
     expect(find.text('Masuk'), findsOneWidget);
     expect(find.text('Buat akun baru'), findsOneWidget);
   });

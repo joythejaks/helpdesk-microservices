@@ -111,8 +111,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'Nama lengkap',
                       icon: Icons.person_outline,
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Nama tidak boleh kosong';
+                        }
                         return null;
                       },
                     ),
@@ -123,13 +124,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Email tidak boleh kosong';
+                        }
                         final emailRegex = RegExp(
                           r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
                         );
-                        if (!emailRegex.hasMatch(value))
+                        if (!emailRegex.hasMatch(value)) {
                           return 'Format email tidak valid';
+                        }
                         return null;
                       },
                     ),
@@ -139,8 +142,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       label: 'Departemen',
                       icon: Icons.apartment_outlined,
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Departemen tidak boleh kosong';
+                        }
                         return null;
                       },
                     ),
@@ -151,12 +155,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.lock_outline,
                       obscureText: true,
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Password tidak boleh kosong';
-                        if (value.length < 8)
+                        }
+                        if (value.length < 8) {
                           return 'Password minimal 8 karakter';
-                        if (value.length > 72)
+                        }
+                        if (value.length > 72) {
                           return 'Password maksimal 72 karakter';
+                        }
                         return null;
                       },
                     ),
