@@ -1,38 +1,31 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// Access/refresh tokens via Keychain on iOS/macOS and Keystore-backed
+/// EncryptedSharedPreferences on Android, instead of plaintext prefs —
+/// closes a real gap (tokens were readable as plaintext XML/plist on a
+/// rooted/jailbroken device or via any other file-read bug).
 class TokenStorage {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
 
-  SharedPreferences? _prefs;
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
-  Future<SharedPreferences> _getPrefs() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!;
-  }
+  Future<String?> readAccessToken() => _storage.read(key: _accessTokenKey);
 
-  Future<String?> readAccessToken() async {
-    final prefs = await _getPrefs();
-    return prefs.getString(_accessTokenKey);
-  }
-
-  Future<String?> readRefreshToken() async {
-    final prefs = await _getPrefs();
-    return prefs.getString(_refreshTokenKey);
-  }
+  Future<String?> readRefreshToken() => _storage.read(key: _refreshTokenKey);
 
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(_accessTokenKey, accessToken);
-    await prefs.setString(_refreshTokenKey, refreshToken);
+    await _storage.write(key: _accessTokenKey, value: accessToken);
+    await _storage.write(key: _refreshTokenKey, value: refreshToken);
   }
 
   Future<void> clear() async {
-    final prefs = await _getPrefs();
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
   }
 }
