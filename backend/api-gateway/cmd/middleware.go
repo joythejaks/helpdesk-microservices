@@ -132,14 +132,17 @@ func (rl *RateLimiter) allow(key string) bool {
 // doesn't grow unbounded under a long-running process.
 func (rl *RateLimiter) cleanupLoop() {
 	for range time.Tick(time.Minute) {
-		cutoff := time.Now().Add(-3 * time.Minute)
-		rl.mu.Lock()
-		for k, v := range rl.visitors {
-			if v.lastSeen.Before(cutoff) {
-				delete(rl.visitors, k)
-			}
+		rl.evict(time.Now().Add(-3 * time.Minute))
+	}
+}
+
+func (rl *RateLimiter) evict(cutoff time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	for k, v := range rl.visitors {
+		if v.lastSeen.Before(cutoff) {
+			delete(rl.visitors, k)
 		}
-		rl.mu.Unlock()
 	}
 }
 

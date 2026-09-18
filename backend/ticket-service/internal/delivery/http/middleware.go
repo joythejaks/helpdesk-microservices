@@ -2,6 +2,8 @@ package http
 
 import (
 	"crypto/subtle"
+	"sync"
+	"time"
 
 	"ticket-service/pkg/response"
 
@@ -19,6 +21,89 @@ func InternalOnlyMiddleware(secret string) gin.HandlerFunc {
 		got := c.GetHeader("X-Internal-Secret")
 		if got == "" || subtle.ConstantTimeCompare([]byte(got), secretBytes) != 1 {
 			response.Error(c, 403, "forbidden", "forbidden")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// =======================
+// RATE LIMITER (token bucket per client IP)
+// =======================
+
+type visitor struct {
+	tokens   float64
+	lastSeen time.Time
+}
+
+type RateLimiter struct {
+	mu       sync.Mutex
+	visitors map[string]*visitor
+	rate     float64 // tokens replenished per second
+	burst    float64 // max tokens (also the initial bucket size)
+}
+
+func NewRateLimiter(rps, burst float64) *RateLimiter {
+	rl := &RateLimiter{
+		visitors: make(map[string]*visitor),
+		rate:     rps,
+		burst:    burst,
+	}
+	go rl.cleanupLoop()
+	return rl
+}
+
+func (rl *RateLimiter) allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	v, exists := rl.visitors[key]
+	if !exists {
+		rl.visitors[key] = &visitor{tokens: rl.burst - 1, lastSeen: now}
+		return true
+	}
+
+	elapsed := now.Sub(v.lastSeen).Seconds()
+	v.tokens += elapsed * rl.rate
+	if v.tokens > rl.burst {
+		v.tokens = rl.burst
+	}
+	v.lastSeen = now
+
+	if v.tokens < 1 {
+		return false
+	}
+	v.tokens--
+	return true
+}
+
+// cleanupLoop evicts visitors that haven't been seen in a while so the map
+// doesn't grow unbounded under a long-running process.
+func (rl *RateLimiter) cleanupLoop() {
+	for range time.Tick(time.Minute) {
+		rl.evict(time.Now().Add(-3 * time.Minute))
+	}
+}
+
+func (rl *RateLimiter) evict(cutoff time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	for k, v := range rl.visitors {
+		if v.lastSeen.Before(cutoff) {
+			delete(rl.visitors, k)
+		}
+	}
+}
+
+// RateLimitMiddleware throttles high-frequency ticket creation/attachment
+// uploads on a per-client-IP basis (attachment size is already capped
+// elsewhere; this caps request rate).
+func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !rl.allow(c.ClientIP()) {
+			response.Error(c, 429, "too many requests", "RATE_LIMITED")
 			c.Abort()
 			return
 		}

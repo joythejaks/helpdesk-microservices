@@ -120,6 +120,9 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 	// goroutine untuk detect disconnect dan cleanup
 	go func() {
 		defer func() {
+			if r := recover(); r != nil {
+				log.Println("🔥 recovered from panic in WS reader goroutine:", r)
+			}
 			clientsMu.Lock()
 			delete(clients, conn)
 			clientsMu.Unlock()
@@ -138,17 +141,25 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 
 func HandleMessages() {
 	for out := range broadcast {
-		clientsMu.Lock()
-		for conn, c := range clients {
-			if !matches(c, out) {
-				continue
+		func() {
+			clientsMu.Lock()
+			defer clientsMu.Unlock()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Println("🔥 recovered from panic in HandleMessages:", r)
+				}
+			}()
+
+			for conn, c := range clients {
+				if !matches(c, out) {
+					continue
+				}
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(out.payload)); err != nil {
+					conn.Close()
+					delete(clients, conn)
+				}
 			}
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(out.payload)); err != nil {
-				conn.Close()
-				delete(clients, conn)
-			}
-		}
-		clientsMu.Unlock()
+		}()
 	}
 }
 
