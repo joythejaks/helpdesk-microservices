@@ -3,31 +3,36 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 )
 
 type Config struct {
-	AppPort        string
-	RabbitMQURL    string
-	DBHost         string
-	DBUser         string
-	DBPassword     string
-	DBName         string
-	DBPort         string
-	InternalSecret string
+	AppPort              string
+	RabbitMQURL          string
+	DBHost               string
+	DBUser               string
+	DBPassword           string
+	DBName               string
+	DBPort               string
+	InternalSecret       string
+	TicketRateLimitRPS   float64
+	TicketRateLimitBurst float64
 }
 
 var AppConfig Config
 
 func Load() {
 	AppConfig = Config{
-		AppPort:        os.Getenv("APP_PORT"),
-		RabbitMQURL:    os.Getenv("RABBITMQ_URL"),
-		DBHost:         os.Getenv("DB_HOST"),
-		DBUser:         os.Getenv("DB_USER"),
-		DBPassword:     os.Getenv("DB_PASSWORD"),
-		DBName:         os.Getenv("DB_NAME"),
-		DBPort:         os.Getenv("DB_PORT"),
-		InternalSecret: os.Getenv("INTERNAL_SHARED_SECRET"),
+		AppPort:              os.Getenv("APP_PORT"),
+		RabbitMQURL:          os.Getenv("RABBITMQ_URL"),
+		DBHost:               os.Getenv("DB_HOST"),
+		DBUser:               os.Getenv("DB_USER"),
+		DBPassword:           os.Getenv("DB_PASSWORD"),
+		DBName:               os.Getenv("DB_NAME"),
+		DBPort:               os.Getenv("DB_PORT"),
+		InternalSecret:       os.Getenv("INTERNAL_SHARED_SECRET"),
+		TicketRateLimitRPS:   parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_RPS"), 5),
+		TicketRateLimitBurst: parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_BURST"), 10),
 	}
 
 	if AppConfig.AppPort == "" {
@@ -41,4 +46,15 @@ func Load() {
 	if AppConfig.InternalSecret == "" {
 		log.Fatal("INTERNAL_SHARED_SECRET is required")
 	}
+}
+
+func parseFloatOrDefault(raw string, def float64) float64 {
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
 }

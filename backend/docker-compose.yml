@@ -16,6 +16,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Daily pg_dump to a host-mounted directory (outside the auth_db_data
+  # volume the primary data lives in) — a lost/corrupted volume no longer
+  # means permanent data loss. On-demand backup: `docker compose exec
+  # auth-db-backup sh backup.sh`. Restore: `docker compose exec -it
+  # auth-db-backup sh restore.sh` (interactive file picker).
+  auth-db-backup:
+    image: prodrigestivill/postgres-backup-local:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: auth-db
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+    volumes:
+      - ./backups/auth-db:/backups
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
   ticket-db:
     image: postgres:15
     restart: unless-stopped
@@ -33,6 +56,24 @@ services:
       timeout: 5s
       retries: 5
 
+  ticket-db-backup:
+    image: prodrigestivill/postgres-backup-local:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: ticket-db
+      POSTGRES_DB: ticket_db
+      POSTGRES_USER: ticket
+      POSTGRES_PASSWORD: ticket
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+    volumes:
+      - ./backups/ticket-db:/backups
+    depends_on:
+      ticket-db:
+        condition: service_healthy
+
   notification-db:
     image: postgres:15
     restart: unless-stopped
@@ -49,6 +90,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  notification-db-backup:
+    image: prodrigestivill/postgres-backup-local:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: notification-db
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+    volumes:
+      - ./backups/notification-db:/backups
+    depends_on:
+      notification-db:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:3-management

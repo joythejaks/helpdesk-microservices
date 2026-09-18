@@ -7,6 +7,9 @@ bin/
 *.exe
 *.out
 
+# Local Postgres backups (docker-compose backup sidecars)
+backend/backups/
+
 # Flutter
 build/
 .dart_tool/

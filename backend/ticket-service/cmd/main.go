@@ -99,10 +99,21 @@ func main() {
 	// Business routes only reachable via the API gateway (proven by
 	// X-Internal-Secret) — closes off calling this service directly and
 	// spoofing X-User-ID/X-User-ROLE.
+	ticketLimiter := delivery.NewRateLimiter(config.AppConfig.TicketRateLimitRPS, config.AppConfig.TicketRateLimitBurst)
+
 	internalOnly := r.Group("/")
 	internalOnly.Use(delivery.InternalOnlyMiddleware(config.AppConfig.InternalSecret))
 	{
-		internalOnly.POST("/tickets", handler.Create)
+		// POST /tickets and attachment uploads can be spammed at unlimited
+		// frequency otherwise — attachment *size* was already capped, but
+		// not request *rate*.
+		limited := internalOnly.Group("/")
+		limited.Use(delivery.RateLimitMiddleware(ticketLimiter))
+		{
+			limited.POST("/tickets", handler.Create)
+			limited.POST("/tickets/:id/attachments", attachmentHandler.Create)
+		}
+
 		internalOnly.GET("/tickets", handler.GetTickets)
 		internalOnly.GET("/tickets/:id", handler.GetByID)
 		internalOnly.GET("/tickets/:id/history", handler.GetHistory)
@@ -110,7 +121,6 @@ func main() {
 		internalOnly.PATCH("/tickets/:id/status", handler.UpdateStatus)
 		internalOnly.POST("/tickets/:id/comments", commentHandler.Create)
 		internalOnly.GET("/tickets/:id/comments", commentHandler.List)
-		internalOnly.POST("/tickets/:id/attachments", attachmentHandler.Create)
 		internalOnly.GET("/tickets/:id/attachments", attachmentHandler.List)
 		internalOnly.GET("/tickets/:id/attachments/:attachmentId", attachmentHandler.Download)
 

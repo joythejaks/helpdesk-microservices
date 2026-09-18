@@ -118,19 +118,27 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 				return nil
 			}
 
-			var evt event
-			if err := json.Unmarshal(d.Body, &evt); err != nil {
-				log.Println("⚠️ malformed notification event, dropping:", err)
-				continue
-			}
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Println("🔥 recovered from panic in consumePersist:", r)
+					}
+				}()
 
-			if evt.TargetUserID == nil {
-				continue // role broadcasts stay WebSocket-only, never persisted
-			}
+				var evt event
+				if err := json.Unmarshal(d.Body, &evt); err != nil {
+					log.Println("⚠️ malformed notification event, dropping:", err)
+					return
+				}
 
-			if err := notifier.Create(*evt.TargetUserID, d.Body); err != nil {
-				log.Println("⚠️ failed to persist notification:", err)
-			}
+				if evt.TargetUserID == nil {
+					return // role broadcasts stay WebSocket-only, never persisted
+				}
+
+				if err := notifier.Create(*evt.TargetUserID, d.Body); err != nil {
+					log.Println("⚠️ failed to persist notification:", err)
+				}
+			}()
 		case err := <-connClosed:
 			if err != nil {
 				return err
@@ -195,22 +203,30 @@ func consumeBroadcast(url string) error {
 				return nil
 			}
 
-			raw := string(d.Body)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Println("🔥 recovered from panic in consumeBroadcast:", r)
+					}
+				}()
 
-			var evt event
-			if err := json.Unmarshal(d.Body, &evt); err != nil {
-				log.Println("⚠️ malformed notification event, dropping:", err)
-				continue
-			}
+				raw := string(d.Body)
 
-			switch {
-			case evt.TargetUserID != nil:
-				ws.SendToUser(*evt.TargetUserID, raw)
-			case len(evt.TargetRoles) > 0:
-				ws.SendToRoles(evt.TargetRoles, raw)
-			default:
-				log.Println("⚠️ notification event has no target, dropping:", raw)
-			}
+				var evt event
+				if err := json.Unmarshal(d.Body, &evt); err != nil {
+					log.Println("⚠️ malformed notification event, dropping:", err)
+					return
+				}
+
+				switch {
+				case evt.TargetUserID != nil:
+					ws.SendToUser(*evt.TargetUserID, raw)
+				case len(evt.TargetRoles) > 0:
+					ws.SendToRoles(evt.TargetRoles, raw)
+				default:
+					log.Println("⚠️ notification event has no target, dropping:", raw)
+				}
+			}()
 		case err := <-connClosed:
 			if err != nil {
 				return err

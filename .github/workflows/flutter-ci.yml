@@ -2,14 +2,8 @@ name: Flutter CI
 
 on:
   pull_request:
-    paths:
-      - "flutter_app/helpdesk_app/**"
-      - ".github/workflows/flutter-ci.yml"
   push:
     branches: [main]
-    paths:
-      - "flutter_app/helpdesk_app/**"
-      - ".github/workflows/flutter-ci.yml"
 
 defaults:
   run:
