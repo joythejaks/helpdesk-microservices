@@ -32,7 +32,7 @@ func TestProxyTo_ForwardsPathAndBody(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.Any("/tickets/*path", proxyTo(target))
+	r.Any("/tickets/*path", proxyTo(target, newUpstreamBreaker("test-ticket")))
 	gateway := httptest.NewServer(r)
 	defer gateway.Close()
 
@@ -67,7 +67,7 @@ func TestProxyTrim_StripsPrefix(t *testing.T) {
 	}
 
 	r := gin.New()
-	r.Any("/auth/*path", proxyTrim("/auth", target))
+	r.Any("/auth/*path", proxyTrim("/auth", target, newUpstreamBreaker("test-auth")))
 	gateway := httptest.NewServer(r)
 	defer gateway.Close()
 
@@ -97,7 +97,7 @@ func TestProxyTo_ReturnsJSON502WhenUpstreamUnreachable(t *testing.T) {
 	upstream.Close() // now genuinely unreachable
 
 	r := gin.New()
-	r.Any("/tickets/*path", proxyTo(target))
+	r.Any("/tickets/*path", proxyTo(target, newUpstreamBreaker("test-unreachable")))
 	gateway := httptest.NewServer(r)
 	defer gateway.Close()
 

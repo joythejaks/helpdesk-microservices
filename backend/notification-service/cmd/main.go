@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -68,6 +71,9 @@ func main() {
 	wsLimiter := ws.NewRateLimiter(config.AppConfig.WSRateLimitRPS, config.AppConfig.WSRateLimitBurst)
 	mux.HandleFunc("/ws", ws.RateLimit(wsLimiter, ws.HandleConnections))
 
+	// /health is readiness (DB + RabbitMQ checked); /healthz is liveness
+	// (unconditional 200) — Kubernetes should restart the pod on the
+	// latter, not on a slow dependency reconnect the former would fail.
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -78,6 +84,9 @@ func main() {
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		response.Success(w, "ok")
 	})
 
 	mux.Handle("/metrics", promhttp.Handler())
@@ -100,7 +109,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: mux,
+		Handler: requestIDMiddleware(mux),
 	}
 
 	go func() {
@@ -128,6 +137,32 @@ func main() {
 
 	sqlDB.Close()
 	logger.Log.Info("server exited")
+}
+
+// requestIDMiddleware reads the X-Request-ID header api-gateway already
+// generates/forwards (or generates one, for requests that reach this
+// service directly, e.g. the WebSocket upgrade), so every request can be
+// correlated across services — this service had no such middleware before,
+// and has no gin/other middleware stack to insert into, so it wraps the
+// whole mux once instead of per-route.
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = generateRequestID()
+		}
+		w.Header().Set("X-Request-ID", reqID)
+		r.Header.Set("X-Request-ID", reqID)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func generateRequestID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 func runSelfHealthcheck() int {
