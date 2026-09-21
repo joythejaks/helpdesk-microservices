@@ -29,6 +29,13 @@ const (
 	// user's live connection can deliver it (see BACKLOG.md's
 	// "notification-service can't horizontally scale" item this closes).
 	eventsExchange = "ticket_events"
+
+	// dlxExchange/dlqQueue park messages persistQueue Nacks (malformed
+	// JSON, failed DB write) instead of losing them silently — declared
+	// identically here and in ticket-service's publisher.go, since both
+	// sides declare persistQueue and RabbitMQ requires matching args.
+	dlxExchange = "ticket_events.dlx"
+	dlqQueue    = "ticket_events.dlq"
 )
 
 var connected atomic.Bool
@@ -90,7 +97,22 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(persistQueue, true, false, false, false, nil)
+	if err := ch.ExchangeDeclare(dlxExchange, "fanout", true, false, false, false, nil); err != nil {
+		return err
+	}
+
+	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := ch.QueueBind(dlq.Name, "", dlxExchange, false, nil); err != nil {
+		return err
+	}
+
+	q, err := ch.QueueDeclare(persistQueue, true, false, false, false, amqp091.Table{
+		"x-dead-letter-exchange": dlxExchange,
+	})
 	if err != nil {
 		return err
 	}
@@ -99,7 +121,7 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 		return err
 	}
 
-	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
@@ -118,27 +140,37 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 				return nil
 			}
 
-			func() {
+			success := func() (ok bool) {
 				defer func() {
 					if r := recover(); r != nil {
 						log.Println("🔥 recovered from panic in consumePersist:", r)
+						ok = false
 					}
 				}()
 
 				var evt event
 				if err := json.Unmarshal(d.Body, &evt); err != nil {
 					log.Println("⚠️ malformed notification event, dropping:", err)
-					return
+					return false // parked in ticket_events.dlq
 				}
 
 				if evt.TargetUserID == nil {
-					return // role broadcasts stay WebSocket-only, never persisted
+					return true // role broadcasts stay WebSocket-only, never persisted
 				}
 
 				if err := notifier.Create(*evt.TargetUserID, d.Body); err != nil {
 					log.Println("⚠️ failed to persist notification:", err)
+					return false // parked in ticket_events.dlq
 				}
+
+				return true
 			}()
+
+			if success {
+				d.Ack(false)
+			} else {
+				d.Nack(false, false)
+			}
 		case err := <-connClosed:
 			if err != nil {
 				return err
@@ -186,7 +218,7 @@ func consumeBroadcast(url string) error {
 		return err
 	}
 
-	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
@@ -203,10 +235,11 @@ func consumeBroadcast(url string) error {
 				return nil
 			}
 
-			func() {
+			success := func() (ok bool) {
 				defer func() {
 					if r := recover(); r != nil {
 						log.Println("🔥 recovered from panic in consumeBroadcast:", r)
+						ok = false
 					}
 				}()
 
@@ -215,7 +248,7 @@ func consumeBroadcast(url string) error {
 				var evt event
 				if err := json.Unmarshal(d.Body, &evt); err != nil {
 					log.Println("⚠️ malformed notification event, dropping:", err)
-					return
+					return false
 				}
 
 				switch {
@@ -226,7 +259,19 @@ func consumeBroadcast(url string) error {
 				default:
 					log.Println("⚠️ notification event has no target, dropping:", raw)
 				}
+
+				return true
 			}()
+
+			// No DLX here — this queue is anonymous/exclusive/auto-delete,
+			// torn down with its own connection, so there's nothing left to
+			// retry once it's gone; Ack/Nack only matters for redelivery
+			// within this connection's lifetime.
+			if success {
+				d.Ack(false)
+			} else {
+				d.Nack(false, false)
+			}
 		case err := <-connClosed:
 			if err != nil {
 				return err

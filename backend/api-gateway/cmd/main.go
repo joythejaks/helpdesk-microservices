@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"github.com/sony/gobreaker/v2"
 )
 
 func main() {
@@ -52,6 +54,12 @@ func main() {
 	}
 
 	rateLimiter := NewRateLimiter(config.AppConfig.RateLimitRPS, config.AppConfig.RateLimitBurst)
+
+	// One breaker per upstream, shared across every route proxying to that
+	// upstream — fails fast (503) once a downstream is reliably down,
+	// instead of every request waiting out the full proxy timeout.
+	authBreaker := newUpstreamBreaker("auth-service")
+	ticketBreaker := newUpstreamBreaker("ticket-service")
 
 	r := gin.Default()
 
@@ -85,56 +93,56 @@ func main() {
 	// =======================
 	// AUTH (PUBLIC)
 	// =======================
-	r.Any("/auth/login", proxyTrim("/auth", authURL))
-	r.Any("/auth/register", proxyTrim("/auth", authURL))
-	r.Any("/auth/refresh", proxyTrim("/auth", authURL))
+	r.Any("/auth/login", proxyTrim("/auth", authURL, authBreaker))
+	r.Any("/auth/register", proxyTrim("/auth", authURL, authBreaker))
+	r.Any("/auth/refresh", proxyTrim("/auth", authURL, authBreaker))
 
 	// =======================
 	// AUTH (PROTECTED)
 	// =======================
 	r.POST("/auth/logout",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.POST("/auth/admin/staff",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.GET("/auth/admin/agents",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.GET("/auth/me",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.PATCH("/auth/me",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.PATCH("/auth/me/availability",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 	r.POST("/auth/change-password",
 		authMiddleware(secret),
-		proxyTrim("/auth", authURL),
+		proxyTrim("/auth", authURL, authBreaker),
 	)
 
 	// =======================
 	// REPORTS (ADMIN, PROTECTED)
 	// =======================
-	r.GET("/reports/summary", authMiddleware(secret), proxyTo(ticketURL))
-	r.GET("/reports/agents", authMiddleware(secret), proxyTo(ticketURL))
-	r.GET("/reports/critical-trends", authMiddleware(secret), proxyTo(ticketURL))
-	r.GET("/reports/queue-size", authMiddleware(secret), proxyTo(ticketURL))
+	r.GET("/reports/summary", authMiddleware(secret), proxyTo(ticketURL, ticketBreaker))
+	r.GET("/reports/agents", authMiddleware(secret), proxyTo(ticketURL, ticketBreaker))
+	r.GET("/reports/critical-trends", authMiddleware(secret), proxyTo(ticketURL, ticketBreaker))
+	r.GET("/reports/queue-size", authMiddleware(secret), proxyTo(ticketURL, ticketBreaker))
 
 	// =======================
 	// TICKETS (ROOT)
 	// =======================
 	r.Any("/tickets",
 		authMiddleware(secret),
-		proxyTo(ticketURL),
+		proxyTo(ticketURL, ticketBreaker),
 	)
 
 	// =======================
@@ -142,7 +150,7 @@ func main() {
 	// =======================
 	r.Any("/tickets/*path",
 		authMiddleware(secret),
-		proxyTo(ticketURL),
+		proxyTo(ticketURL, ticketBreaker),
 	)
 
 	runWithGracefulShutdown(r, config.AppConfig.AppPort)
@@ -192,7 +200,10 @@ func newProxyTransport() *http.Transport {
 }
 
 // proxyErrorHandler returns a JSON 502 instead of letting the proxy fall back
-// to its default plain-text error when the upstream is unreachable or times out.
+// to its default plain-text error when the upstream is unreachable or times
+// out — or a JSON 503 when the circuit breaker is the reason the request
+// never reached the upstream at all, so callers can tell "briefly down" apart
+// from "we've stopped even trying."
 func proxyErrorHandler(target *url.URL) func(http.ResponseWriter, *http.Request, error) {
 	return func(w http.ResponseWriter, req *http.Request, err error) {
 		logger.Log.WithError(err).WithFields(logrus.Fields{
@@ -200,16 +211,53 @@ func proxyErrorHandler(target *url.URL) func(http.ResponseWriter, *http.Request,
 			"target": target.Host,
 		}).Error("proxy error")
 
+		status := http.StatusBadGateway
+		body := `{"success":false,"message":"upstream service unavailable","error":"BAD_GATEWAY"}`
+		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+			status = http.StatusServiceUnavailable
+			body = `{"success":false,"message":"upstream service temporarily unavailable","error":"CIRCUIT_OPEN"}`
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte(`{"success":false,"message":"upstream service unavailable","error":"BAD_GATEWAY"}`))
+		w.WriteHeader(status)
+		w.Write([]byte(body))
 	}
 }
 
+// newUpstreamBreaker builds one circuit breaker for an upstream host, meant
+// to be constructed once in main() and shared across every route proxying
+// to that host — trips (fails fast with 503) once that downstream is
+// reliably failing, instead of every request separately waiting out the
+// full proxy timeout.
+func newUpstreamBreaker(name string) *gobreaker.CircuitBreaker[*http.Response] {
+	return gobreaker.NewCircuitBreaker[*http.Response](gobreaker.Settings{
+		Name: name,
+		OnStateChange: func(name string, from, to gobreaker.State) {
+			logger.Log.Warnf("circuit breaker %s: %s -> %s", name, from, to)
+		},
+	})
+}
+
+// breakerTransport wraps a RoundTripper with a circuit breaker. Safe by
+// construction: http.RoundTripper.RoundTrip only returns a non-nil error for
+// actual transport failures (connection refused, timeout, DNS) — never for
+// an ordinary non-2xx HTTP response — so the breaker trips only on real
+// downstream connectivity failure, not the upstream's own 4xx/5xx responses.
+type breakerTransport struct {
+	breaker *gobreaker.CircuitBreaker[*http.Response]
+	next    http.RoundTripper
+}
+
+func (t *breakerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t.breaker.Execute(func() (*http.Response, error) {
+		return t.next.RoundTrip(req)
+	})
+}
+
 // proxyTo reverse-proxies to a pre-parsed target URL, keeping the request path.
-func proxyTo(target *url.URL) gin.HandlerFunc {
+func proxyTo(target *url.URL, breaker *gobreaker.CircuitBreaker[*http.Response]) gin.HandlerFunc {
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Transport = newProxyTransport()
+	proxy.Transport = &breakerTransport{breaker: breaker, next: newProxyTransport()}
 	proxy.ErrorHandler = proxyErrorHandler(target)
 
 	return func(c *gin.Context) {
@@ -223,9 +271,9 @@ func proxyTo(target *url.URL) gin.HandlerFunc {
 }
 
 // proxyTrim reverse-proxies to target, stripping the given prefix from the path.
-func proxyTrim(prefix string, target *url.URL) gin.HandlerFunc {
+func proxyTrim(prefix string, target *url.URL, breaker *gobreaker.CircuitBreaker[*http.Response]) gin.HandlerFunc {
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Transport = newProxyTransport()
+	proxy.Transport = &breakerTransport{breaker: breaker, next: newProxyTransport()}
 	proxy.ErrorHandler = proxyErrorHandler(target)
 
 	return func(c *gin.Context) {

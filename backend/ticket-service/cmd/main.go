@@ -81,11 +81,15 @@ func main() {
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
 
+	r.Use(delivery.RequestIDMiddleware())
 	r.Use(metrics.GinMiddleware())
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// health — intentionally outside the internal-secret gate so the
 	// container's own HEALTHCHECK (calling itself over localhost) still works.
+	// /health is readiness (dependency-checked); /healthz is liveness
+	// (unconditional 200) — Kubernetes should restart the pod on the
+	// latter, not on a slow DB reconnect the former would fail.
 	r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
@@ -93,6 +97,9 @@ func main() {
 			response.Error(c, http.StatusServiceUnavailable, "database disconnected", "unavailable")
 			return
 		}
+		response.Success(c, "ok")
+	})
+	r.GET("/healthz", func(c *gin.Context) {
 		response.Success(c, "ok")
 	})
 

@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -19,6 +20,17 @@ const (
 	maxStartupRetries = 15
 	startupRetryDelay = 2 * time.Second
 	reconnectDelay    = 3 * time.Second
+
+	// dlxExchange/dlqQueue must match notification-service's consumer.go
+	// declarations byte-for-byte (both sides declare queueName, and
+	// RabbitMQ rejects a redeclare with mismatched args).
+	dlxExchange = "ticket_events.dlx"
+	dlqQueue    = "ticket_events.dlq"
+
+	// publishConfirmTimeout bounds how long Publish waits for RabbitMQ to
+	// ack/nack — Publish runs synchronously in the HTTP request path, so
+	// an unbounded wait would turn a broker hiccup into a slow API.
+	publishConfirmTimeout = 3 * time.Second
 )
 
 type Publisher struct {
@@ -69,7 +81,28 @@ func (p *Publisher) connect() error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(queueName, true, false, false, false, nil)
+	if err := ch.ExchangeDeclare(dlxExchange, "fanout", true, false, false, false, nil); err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, nil)
+	if err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	if err := ch.QueueBind(dlq.Name, "", dlxExchange, false, nil); err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	q, err := ch.QueueDeclare(queueName, true, false, false, false, amqp091.Table{
+		"x-dead-letter-exchange": dlxExchange,
+	})
 	if err != nil {
 		ch.Close()
 		conn.Close()
@@ -80,6 +113,15 @@ func (p *Publisher) connect() error {
 	// keeps receiving every event unchanged — only the publish target
 	// below actually moves from "direct to queue" to "via the exchange".
 	if err := ch.QueueBind(q.Name, "", eventsExchange, false, nil); err != nil {
+		ch.Close()
+		conn.Close()
+		return err
+	}
+
+	// Publisher confirms: Publish() below waits (bounded) for RabbitMQ to
+	// actually ack/nack receipt, instead of "sent" meaning only "written
+	// to the local TCP buffer."
+	if err := ch.Confirm(false); err != nil {
 		ch.Close()
 		conn.Close()
 		return err
@@ -103,7 +145,10 @@ func (p *Publisher) reconnect() error {
 	return p.connect()
 }
 
-// Publish sends a message, reconnecting once on failure.
+// Publish sends a message, reconnecting once on failure. Best-effort: a
+// notification failure should never fail the underlying HTTP request, so
+// this always returns nil once the message has been handed to RabbitMQ —
+// it only waits (bounded) to confirm receipt, logging the outcome.
 func (p *Publisher) Publish(message string) error {
 	if p.ch == nil {
 		if err := p.reconnect(); err != nil {
@@ -112,7 +157,7 @@ func (p *Publisher) Publish(message string) error {
 		}
 	}
 
-	err := p.ch.Publish(
+	confirmation, err := p.ch.PublishWithDeferredConfirm(
 		eventsExchange,
 		"",
 		false,
@@ -130,12 +175,33 @@ func (p *Publisher) Publish(message string) error {
 			return nil
 		}
 		// retry once after reconnect
-		return p.ch.Publish(eventsExchange, "", false, false, amqp091.Publishing{
+		confirmation, err = p.ch.PublishWithDeferredConfirm(eventsExchange, "", false, false, amqp091.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
 		})
+		if err != nil {
+			log.Println("⚠️ Publish retry failed, skipping:", message)
+			return nil
+		}
 	}
 
-	log.Println("📨 Message sent:", message)
+	p.waitForConfirm(confirmation, message)
 	return nil
+}
+
+func (p *Publisher) waitForConfirm(confirmation *amqp091.DeferredConfirmation, message string) {
+	ctx, cancel := context.WithTimeout(context.Background(), publishConfirmTimeout)
+	defer cancel()
+
+	acked, err := confirmation.WaitContext(ctx)
+	if err != nil {
+		log.Println("⚠️ publish confirm wait failed:", err, "for:", message)
+		return
+	}
+	if !acked {
+		log.Println("⚠️ RabbitMQ nacked publish:", message)
+		return
+	}
+
+	log.Println("📨 Message sent and confirmed:", message)
 }

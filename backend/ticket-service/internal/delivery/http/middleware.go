@@ -1,7 +1,10 @@
 package http
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,6 +12,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// RequestIDMiddleware reads the X-Request-ID header api-gateway already
+// generates/forwards (or generates one, for requests that reach this
+// service directly), so every request can be correlated across services —
+// this service had no such middleware before.
+func RequestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		reqID := c.GetHeader("X-Request-ID")
+		if reqID == "" {
+			reqID = generateRequestID()
+		}
+
+		c.Set("request_id", reqID)
+		c.Header("X-Request-ID", reqID)
+		c.Next()
+	}
+}
+
+func generateRequestID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
+}
 
 // InternalOnlyMiddleware rejects any request that doesn't carry the shared
 // secret the API gateway attaches to every proxied request — closes off

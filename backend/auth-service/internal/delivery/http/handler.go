@@ -38,12 +38,16 @@ func NewAuthHandler(
 	}
 }
 
-// HealthCheck memberikan informasi status servis
-// @Summary Cek kesehatan servis
+// HealthCheck adalah readiness check — dependensi (database) benar-benar
+// dicek, dan gagal (503) kalau database tidak terjangkau, sehingga
+// Kubernetes readiness probe bisa menarik pod ini dari traffic saat DB
+// down alih-alih terus mengirim request ke pod yang tidak siap.
+// @Summary Cek kesehatan servis (readiness)
 // @Description Memberikan status kesehatan servis dan dependensi database
 // @Tags System
 // @Produce json
 // @Success 200 {object} response.Response
+// @Failure 503 {object} response.Response
 // @Router /health [get]
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	dbStatus := "connected"
@@ -59,6 +63,11 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 		}
 	}
 
+	if dbStatus == "disconnected" {
+		response.Error(c, http.StatusServiceUnavailable, "database disconnected", "unavailable")
+		return
+	}
+
 	response.Success(c, gin.H{
 		"status":    "up",
 		"timestamp": time.Now().Format(time.RFC3339),
@@ -67,6 +76,18 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 			"database": dbStatus,
 		},
 	})
+}
+
+// Healthz is a liveness check — unconditional 200, no dependency check.
+// Kubernetes uses this to decide whether to restart the pod at all; a slow
+// DB reconnect should pull the pod from traffic (see HealthCheck above),
+// not restart the process.
+// @Summary Cek liveness servis
+// @Produce json
+// @Success 200 {object} response.Response
+// @Router /healthz [get]
+func (h *AuthHandler) Healthz(c *gin.Context) {
+	response.Success(c, "ok")
 }
 
 type RegisterRequest struct {
@@ -561,8 +582,10 @@ func (h *AuthHandler) ListAgents(c *gin.Context) {
 //
 
 func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLimiter *RateLimiter) {
-	// Public Health Check
+	// Public Health Check — /health is readiness (dependency-checked),
+	// /healthz is liveness (unconditional 200).
 	r.GET("/health", h.HealthCheck)
+	r.GET("/healthz", h.Healthz)
 
 	// Semua rute bisnis hanya boleh diakses lewat API Gateway (dibuktikan
 	// dengan X-Internal-Secret) — mencegah bypass langsung ke service ini,

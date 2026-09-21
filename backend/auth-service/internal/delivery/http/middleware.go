@@ -45,16 +45,20 @@ func RequireRole(role string) gin.HandlerFunc {
 	}
 }
 
-// TraceMiddleware memastikan setiap request memiliki Trace ID untuk logging
+// TraceMiddleware memastikan setiap request memiliki Trace ID untuk logging.
+// Reads X-Request-ID (the header api-gateway actually generates/forwards)
+// rather than X-Trace-ID, so cross-service tracing via this ID actually
+// correlates with the gateway's own logs instead of always minting a new,
+// disconnected UUID.
 func TraceMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		traceID := c.GetHeader("X-Trace-ID")
+		traceID := c.GetHeader("X-Request-ID")
 		if traceID == "" {
 			traceID = uuid.New().String()
 		}
 
 		c.Set("TraceID", traceID)
-		c.Header("X-Trace-ID", traceID)
+		c.Header("X-Request-ID", traceID)
 		c.Next()
 	}
 }
