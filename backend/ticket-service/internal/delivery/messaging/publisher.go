@@ -34,13 +34,17 @@ const (
 )
 
 type Publisher struct {
-	url  string
-	conn *amqp091.Connection
-	ch   *amqp091.Channel
+	url       string
+	queueType string
+	conn      *amqp091.Connection
+	ch        *amqp091.Channel
 }
 
-func NewPublisher(url string) (*Publisher, error) {
-	p := &Publisher{url: url}
+// NewPublisher takes the queue type (classic|quorum) because this service
+// declares ticket_created too, and the declaration must match
+// notification-service's exactly.
+func NewPublisher(url, queueType string) (*Publisher, error) {
+	p := &Publisher{url: url, queueType: queueType}
 
 	if err := p.connect(); err != nil {
 		log.Println("⚠️ RabbitMQ not ready, publisher will retry on first publish")
@@ -87,7 +91,7 @@ func (p *Publisher) connect() error {
 		return err
 	}
 
-	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, nil)
+	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, dlqArgs(p.queueType))
 	if err != nil {
 		ch.Close()
 		conn.Close()
@@ -100,9 +104,7 @@ func (p *Publisher) connect() error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(queueName, true, false, false, false, amqp091.Table{
-		"x-dead-letter-exchange": dlxExchange,
-	})
+	q, err := ch.QueueDeclare(queueName, true, false, false, false, mainQueueArgs(p.queueType))
 	if err != nil {
 		ch.Close()
 		conn.Close()

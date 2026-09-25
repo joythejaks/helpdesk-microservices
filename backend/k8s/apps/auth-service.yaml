@@ -5,7 +5,7 @@ metadata:
 data:
   APP_PORT: "8081"
   GIN_MODE: "release"
-  DB_HOST: auth-db
+  DB_HOST: auth-db-rw
   DB_PORT: "5432"
   DB_USER: auth
   DB_NAME: auth_db

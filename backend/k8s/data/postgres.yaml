@@ -1,155 +1,88 @@
-# One single-replica Postgres per service (database-per-service). HA via an
-# operator is phase 13, deliberately not here.
-apiVersion: v1
-kind: Service
+# One CloudNativePG cluster per service (database-per-service): a primary plus
+# one streaming replica, with automatic failover. The operator exposes
+#   <name>-rw  the current primary (apps write here; the Service follows a
+#              promotion)
+#   <name>-ro  replicas only
+#   <name>-r   any instance (used by the backup jobs)
+#
+# Replication is asynchronous (the default): failover is fast and writes keep
+# working if the replica is down, but a primary that dies abruptly can lose
+# its last un-replicated transactions (RPO > 0). Synchronous replication
+# (postgresql.synchronous / minSyncReplicas) trades that for write
+# availability; not enabled here.
+#
+# On a single-node cluster the two instances share a node, so this survives a
+# pod/process failure, not the loss of the node. The anti-affinity below
+# spreads them when there is more than one node.
+#
+# Credentials come from the *-db-credentials basic-auth Secrets that
+# scripts/gen-secrets.sh derives from the same values the apps read from
+# db-secrets, so the two cannot drift.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: auth-db
 spec:
-  selector: { app: auth-db }
-  ports:
-    - port: 5432
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:15
+  bootstrap:
+    initdb:
+      database: auth_db
+      owner: auth
+      secret:
+        name: auth-db-credentials
+  storage:
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: auth-db
-spec:
-  serviceName: auth-db
-  replicas: 1
-  selector:
-    matchLabels: { app: auth-db }
-  template:
-    metadata:
-      labels: { app: auth-db }
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:15
-          ports:
-            - containerPort: 5432
-          env:
-            - { name: POSTGRES_USER, value: auth }
-            - { name: POSTGRES_DB, value: auth_db }
-            - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: db-secrets, key: AUTH_DB_PASSWORD } }
-            # A subdirectory, because a fresh PVC mount root may not be empty.
-            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
-          readinessProbe:
-            exec: { command: ["pg_isready", "-U", "auth", "-d", "auth_db"] }
-            periodSeconds: 5
-          livenessProbe:
-            exec: { command: ["pg_isready", "-U", "auth", "-d", "auth_db"] }
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          resources:
-            requests: { cpu: 50m, memory: 128Mi }
-            limits: { memory: 512Mi }
-          volumeMounts:
-            - { name: data, mountPath: /var/lib/postgresql/data }
-  volumeClaimTemplates:
-    - metadata: { name: data }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 1Gi } }
----
-apiVersion: v1
-kind: Service
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: ticket-db
 spec:
-  selector: { app: ticket-db }
-  ports:
-    - port: 5432
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:15
+  bootstrap:
+    initdb:
+      database: ticket_db
+      owner: ticket
+      secret:
+        name: ticket-db-credentials
+  storage:
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: ticket-db
-spec:
-  serviceName: ticket-db
-  replicas: 1
-  selector:
-    matchLabels: { app: ticket-db }
-  template:
-    metadata:
-      labels: { app: ticket-db }
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:15
-          ports:
-            - containerPort: 5432
-          env:
-            - { name: POSTGRES_USER, value: ticket }
-            - { name: POSTGRES_DB, value: ticket_db }
-            - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: db-secrets, key: TICKET_DB_PASSWORD } }
-            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
-          readinessProbe:
-            exec: { command: ["pg_isready", "-U", "ticket", "-d", "ticket_db"] }
-            periodSeconds: 5
-          livenessProbe:
-            exec: { command: ["pg_isready", "-U", "ticket", "-d", "ticket_db"] }
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          resources:
-            requests: { cpu: 50m, memory: 128Mi }
-            limits: { memory: 512Mi }
-          volumeMounts:
-            - { name: data, mountPath: /var/lib/postgresql/data }
-  volumeClaimTemplates:
-    - metadata: { name: data }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 1Gi } }
----
-apiVersion: v1
-kind: Service
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: notification-db
 spec:
-  selector: { app: notification-db }
-  ports:
-    - port: 5432
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: notification-db
-spec:
-  serviceName: notification-db
-  replicas: 1
-  selector:
-    matchLabels: { app: notification-db }
-  template:
-    metadata:
-      labels: { app: notification-db }
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:15
-          ports:
-            - containerPort: 5432
-          env:
-            - { name: POSTGRES_USER, value: notification }
-            - { name: POSTGRES_DB, value: notification_db }
-            - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: db-secrets, key: NOTIFICATION_DB_PASSWORD } }
-            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
-          readinessProbe:
-            exec: { command: ["pg_isready", "-U", "notification", "-d", "notification_db"] }
-            periodSeconds: 5
-          livenessProbe:
-            exec: { command: ["pg_isready", "-U", "notification", "-d", "notification_db"] }
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          resources:
-            requests: { cpu: 50m, memory: 128Mi }
-            limits: { memory: 512Mi }
-          volumeMounts:
-            - { name: data, mountPath: /var/lib/postgresql/data }
-  volumeClaimTemplates:
-    - metadata: { name: data }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 1Gi } }
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:15
+  bootstrap:
+    initdb:
+      database: notification_db
+      owner: notification
+      secret:
+        name: notification-db-credentials
+  storage:
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred

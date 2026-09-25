@@ -22,9 +22,22 @@ for svc in auth-service ticket-service notification-service api-gateway; do
   fi
 done
 
+# The kustomize tree contains CloudNativePG / RabbitMQ custom resources, so
+# their operators (and CRDs) must be installed first.
+k8s/scripts/install-operators.sh
+
 k8s/scripts/gen-secrets.sh
 
-kubectl kustomize --load-restrictor=LoadRestrictionsNone k8s | kubectl apply -f -
+# The operators' admission webhooks can need a few seconds after their
+# rollout completes before they accept the first custom resource, so retry.
+for attempt in 1 2 3 4 5; do
+  if kubectl kustomize --load-restrictor=LoadRestrictionsNone k8s | kubectl apply -f -; then
+    break
+  fi
+  [ "$attempt" = 5 ] && { echo "apply failed after $attempt attempts" >&2; exit 1; }
+  echo "apply attempt $attempt failed (webhooks warming up?), retrying in 10s..." >&2
+  sleep 10
+done
 
 # Images are tagged :local, so a rebuilt image is not noticed by an
 # unchanged Deployment spec — restart the app pods to pick it up.
