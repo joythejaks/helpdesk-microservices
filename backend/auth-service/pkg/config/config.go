@@ -4,6 +4,18 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
+)
+
+// Default database pool sizing, per replica. Each service has its own
+// Postgres (max_connections defaults to 100, a few of which are reserved for
+// superuser/operator/backup use), and the HPA can run up to 4 replicas, so a
+// replica gets 20: 4 x 20 = 80 leaves headroom. This service used to allow
+// 100 per replica, which alone is 400 across 4 replicas.
+const (
+	defaultDBMaxOpenConns    = 20
+	defaultDBMaxIdleConns    = 5
+	defaultDBConnMaxLifetime = 30 * time.Minute
 )
 
 type Config struct {
@@ -19,6 +31,10 @@ type Config struct {
 	AuthRateLimitRPS   float64
 	AuthRateLimitBurst float64
 	RedisURL           string
+
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime time.Duration
 
 	BootstrapAdminEmail    string
 	BootstrapAdminPassword string
@@ -41,6 +57,10 @@ func Load() {
 		AuthRateLimitBurst: parseFloatOrDefault(os.Getenv("AUTH_RATE_LIMIT_BURST"), 10),
 		RedisURL:           os.Getenv("REDIS_URL"),
 
+		DBMaxOpenConns:    parseIntOrDefault(os.Getenv("DB_MAX_OPEN_CONNS"), defaultDBMaxOpenConns),
+		DBMaxIdleConns:    parseIntOrDefault(os.Getenv("DB_MAX_IDLE_CONNS"), defaultDBMaxIdleConns),
+		DBConnMaxLifetime: parseDurationOrDefault(os.Getenv("DB_CONN_MAX_LIFETIME"), defaultDBConnMaxLifetime),
+
 		BootstrapAdminEmail:    os.Getenv("BOOTSTRAP_ADMIN_EMAIL"),
 		BootstrapAdminPassword: os.Getenv("BOOTSTRAP_ADMIN_PASSWORD"),
 	}
@@ -60,6 +80,28 @@ func Load() {
 	if AppConfig.InternalSecret == "" {
 		log.Fatal("INTERNAL_SHARED_SECRET is required")
 	}
+}
+
+func parseIntOrDefault(raw string, def int) int {
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}
+
+func parseDurationOrDefault(raw string, def time.Duration) time.Duration {
+	if raw == "" {
+		return def
+	}
+	v, err := time.ParseDuration(raw)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
 }
 
 func parseFloatOrDefault(raw string, def float64) float64 {

@@ -26,6 +26,12 @@ func NewPostgresDB() (*gorm.DB, error) {
 	for i := 0; i < 10; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
+			sqlDB, sqlErr := db.DB()
+			if sqlErr != nil {
+				return nil, sqlErr
+			}
+			applyPool(sqlDB, config.AppConfig.DBMaxOpenConns, config.AppConfig.DBMaxIdleConns, config.AppConfig.DBConnMaxLifetime)
+
 			log.Println("✅ Connected to notification DB")
 			return db, nil
 		}

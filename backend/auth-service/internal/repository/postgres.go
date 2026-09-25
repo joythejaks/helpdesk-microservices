@@ -34,9 +34,7 @@ func NewPostgresDB() (*gorm.DB, error) {
 				return nil, err
 			}
 
-			sqlDB.SetMaxOpenConns(100)          // Maksimal koneksi terbuka
-			sqlDB.SetMaxIdleConns(10)           // Maksimal koneksi idle
-			sqlDB.SetConnMaxLifetime(time.Hour) // Durasi maksimal koneksi bisa digunakan
+			applyPool(sqlDB, config.AppConfig.DBMaxOpenConns, config.AppConfig.DBMaxIdleConns, config.AppConfig.DBConnMaxLifetime)
 
 			return db, nil
 		}
