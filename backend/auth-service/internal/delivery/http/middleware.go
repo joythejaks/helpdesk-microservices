@@ -129,7 +129,7 @@ func (rl *RateLimiter) cleanupLoop() {
 
 // RateLimitMiddleware throttles brute-force/spam attempts against sensitive
 // auth routes (login, register, refresh) on a per-client-IP basis.
-func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
+func RateLimitMiddleware(rl Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !rl.allow(c.ClientIP()) {
 			response.Error(c, 429, "too many requests", "RATE_LIMITED")

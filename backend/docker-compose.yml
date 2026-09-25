@@ -129,6 +129,19 @@ services:
       timeout: 10s
       retries: 10
 
+  # Shared state for the rate limiters, so N replicas of a service share one
+  # bucket per client instead of N. No persistence: buckets are ephemeral,
+  # and every limiter fails open if Redis is unreachable.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   auth-service:
     build: ./auth-service
     restart: unless-stopped
@@ -139,6 +152,8 @@ services:
     # temporarily if you need to hit it directly while debugging.
     depends_on:
       auth-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   ticket-service:
@@ -153,6 +168,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   notification-service:
     build: ./notification-service
@@ -166,6 +183,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   api-gateway:
     build: ./api-gateway
@@ -175,8 +194,12 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - auth-service
-      - ticket-service
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      ticket-service:
+        condition: service_started
 
   # TLS-fronted alternative entry point — api-gateway's own :8080 mapping
   # above is untouched, so existing curl/dev workflows keep working

@@ -106,7 +106,9 @@ func main() {
 	// Business routes only reachable via the API gateway (proven by
 	// X-Internal-Secret) — closes off calling this service directly and
 	// spoofing X-User-ID/X-User-ROLE.
-	ticketLimiter := delivery.NewRateLimiter(config.AppConfig.TicketRateLimitRPS, config.AppConfig.TicketRateLimitBurst)
+	// Shared across replicas via Redis when REDIS_URL is set; otherwise an
+	// in-memory limiter, where N replicas would mean N x the limit.
+	ticketLimiter := delivery.NewLimiter(config.AppConfig.RedisURL, "rl:ticket:", config.AppConfig.TicketRateLimitRPS, config.AppConfig.TicketRateLimitBurst)
 
 	internalOnly := r.Group("/")
 	internalOnly.Use(delivery.InternalOnlyMiddleware(config.AppConfig.InternalSecret))

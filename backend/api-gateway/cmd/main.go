@@ -53,7 +53,9 @@ func main() {
 		logger.Log.Fatal("invalid TICKET_SERVICE_URL: ", config.AppConfig.TicketServiceURL)
 	}
 
-	rateLimiter := NewRateLimiter(config.AppConfig.RateLimitRPS, config.AppConfig.RateLimitBurst)
+	// Shared across replicas via Redis when REDIS_URL is set; otherwise an
+	// in-memory limiter, where N replicas would mean N x the limit.
+	rateLimiter := newLimiter(config.AppConfig.RedisURL, "rl:gateway:", config.AppConfig.RateLimitRPS, config.AppConfig.RateLimitBurst)
 
 	// One breaker per upstream, shared across every route proxying to that
 	// upstream — fails fast (503) once a downstream is reliably down,

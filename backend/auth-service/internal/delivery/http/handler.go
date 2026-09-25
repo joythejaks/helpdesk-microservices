@@ -581,7 +581,7 @@ func (h *AuthHandler) ListAgents(c *gin.Context) {
 // =======================
 //
 
-func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLimiter *RateLimiter) {
+func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLimiter Limiter) {
 	// Public Health Check — /health is readiness (dependency-checked),
 	// /healthz is liveness (unconditional 200).
 	r.GET("/health", h.HealthCheck)

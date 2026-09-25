@@ -128,7 +128,7 @@ func (rl *RateLimiter) evict(cutoff time.Time) {
 // RateLimitMiddleware throttles high-frequency ticket creation/attachment
 // uploads on a per-client-IP basis (attachment size is already capped
 // elsewhere; this caps request rate).
-func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
+func RateLimitMiddleware(rl Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !rl.allow(c.ClientIP()) {
 			response.Error(c, 429, "too many requests", "RATE_LIMITED")

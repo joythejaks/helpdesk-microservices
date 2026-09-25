@@ -17,6 +17,7 @@ type Config struct {
 	InternalSecret       string
 	TicketRateLimitRPS   float64
 	TicketRateLimitBurst float64
+	RedisURL             string
 }
 
 var AppConfig Config
@@ -33,6 +34,7 @@ func Load() {
 		InternalSecret:       os.Getenv("INTERNAL_SHARED_SECRET"),
 		TicketRateLimitRPS:   parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_RPS"), 5),
 		TicketRateLimitBurst: parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_BURST"), 10),
+		RedisURL:             os.Getenv("REDIS_URL"),
 	}
 
 	if AppConfig.AppPort == "" {
