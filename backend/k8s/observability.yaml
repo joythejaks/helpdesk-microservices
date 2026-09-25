@@ -1,0 +1,94 @@
+# Prometheus + Grafana. Their config files are generated into ConfigMaps by
+# kustomization.yaml from the same files docker compose mounts. Storage is
+# emptyDir (dashboards/metrics history reset on pod restart) — fine for a
+# local cluster; add a PVC before relying on it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus }
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.55.1
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet: { path: /-/ready, port: 9090 }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus/prometheus.yml, subPath: prometheus.yml }
+            - { name: data, mountPath: /prometheus }
+      volumes:
+        - name: config
+          configMap: { name: prometheus-config }
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  selector: { app: prometheus }
+  ports:
+    - port: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.3.1
+          ports:
+            - containerPort: 3000
+          env:
+            - { name: GF_SECURITY_ADMIN_USER, value: admin }
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: grafana-secret, key: GF_SECURITY_ADMIN_PASSWORD } }
+            - { name: GF_AUTH_ANONYMOUS_ENABLED, value: "false" }
+          readinessProbe:
+            httpGet: { path: /api/health, port: 3000 }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: datasources, mountPath: /etc/grafana/provisioning/datasources }
+            - { name: dashboard-provider, mountPath: /etc/grafana/provisioning/dashboards }
+            - { name: dashboards, mountPath: /etc/grafana/dashboards }
+            - { name: data, mountPath: /var/lib/grafana }
+      volumes:
+        - name: datasources
+          configMap: { name: grafana-datasources }
+        - name: dashboard-provider
+          configMap: { name: grafana-dashboard-provider }
+        - name: dashboards
+          configMap: { name: grafana-dashboards }
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  selector: { app: grafana }
+  ports:
+    - port: 3000
