@@ -68,7 +68,9 @@ func main() {
 	// custom mux — hindari register ke DefaultServeMux global
 	mux := http.NewServeMux()
 
-	wsLimiter := ws.NewRateLimiter(config.AppConfig.WSRateLimitRPS, config.AppConfig.WSRateLimitBurst)
+	// Shared across replicas via Redis when REDIS_URL is set; otherwise an
+	// in-memory limiter, where N replicas would mean N x the limit.
+	wsLimiter := ws.NewLimiter(config.AppConfig.RedisURL, "rl:ws:", config.AppConfig.WSRateLimitRPS, config.AppConfig.WSRateLimitBurst)
 	mux.HandleFunc("/ws", ws.RateLimit(wsLimiter, ws.HandleConnections))
 
 	// /health is readiness (DB + RabbitMQ checked); /healthz is liveness

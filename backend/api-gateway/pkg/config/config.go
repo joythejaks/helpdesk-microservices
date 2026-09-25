@@ -16,6 +16,7 @@ type Config struct {
 	RateLimitRPS     float64
 	RateLimitBurst   float64
 	InternalSecret   string
+	RedisURL         string
 }
 
 var AppConfig Config
@@ -30,6 +31,7 @@ func Load() {
 		RateLimitRPS:     parseFloatOrDefault(os.Getenv("RATE_LIMIT_RPS"), 10),
 		RateLimitBurst:   parseFloatOrDefault(os.Getenv("RATE_LIMIT_BURST"), 20),
 		InternalSecret:   os.Getenv("INTERNAL_SHARED_SECRET"),
+		RedisURL:         os.Getenv("REDIS_URL"),
 	}
 
 	if AppConfig.AppPort == "" {

@@ -146,7 +146,7 @@ func (rl *RateLimiter) evict(cutoff time.Time) {
 	}
 }
 
-func rateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
+func rateLimitMiddleware(rl Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !rl.allow(c.ClientIP()) {
 			response.Error(c, 429, "too many requests", "RATE_LIMITED")

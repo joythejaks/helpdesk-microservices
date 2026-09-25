@@ -69,7 +69,7 @@ func (rl *RateLimiter) cleanupLoop() {
 
 // RateLimit throttles WebSocket upgrade attempts per client IP, guarding
 // against a client hammering /ws with connection attempts.
-func RateLimit(rl *RateLimiter, next http.HandlerFunc) http.HandlerFunc {
+func RateLimit(rl Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {

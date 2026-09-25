@@ -89,7 +89,9 @@ func main() {
 	// 🔥 Optimasi: Trace Middleware
 	r.Use(delivery.TraceMiddleware())
 
-	authLimiter := delivery.NewRateLimiter(config.AppConfig.AuthRateLimitRPS, config.AppConfig.AuthRateLimitBurst)
+	// Shared across replicas via Redis when REDIS_URL is set; otherwise an
+	// in-memory limiter, where N replicas would mean N x the limit.
+	authLimiter := delivery.NewLimiter(config.AppConfig.RedisURL, "rl:auth:", config.AppConfig.AuthRateLimitRPS, config.AppConfig.AuthRateLimitBurst)
 	delivery.RegisterRoutes(r, handler, config.AppConfig.InternalSecret, authLimiter)
 
 	// 🔥 Implement Graceful Shutdown
