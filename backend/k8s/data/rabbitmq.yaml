@@ -1,57 +1,38 @@
-# Single replica. Quorum-queue HA via the RabbitMQ Cluster Operator is
-# phase 13. Credentials come from rabbitmq-secret (never the guest default,
-# which RabbitMQ only allows from loopback anyway).
-apiVersion: v1
-kind: Service
+# A 3-replica RabbitMQ cluster managed by the RabbitMQ Cluster Operator.
+# Three, not two: quorum queues need a majority to elect a leader and accept
+# writes, so 3 tolerates losing one.
+#
+# The operator creates the client Service `rabbitmq` (5672 amqp, 15672
+# management), so the `rabbitmq` host in RABBITMQ_URL is unchanged.
+# Credentials: the operator adopts the rabbitmq-default-user Secret that
+# scripts/gen-secrets.sh creates from the same user/password as
+# rabbitmq-secret's URL (never the guest default).
+#
+# Quorum queues are opted into per-application with RABBITMQ_QUEUE_TYPE=quorum
+# (see the ticket/notification ConfigMaps): the ticket_created queue and its
+# dead-letter queue are quorum queues; the per-replica broadcast queue stays
+# classic because it is exclusive + auto-delete, which quorum queues don't
+# support, and it is meant to vanish with its connection.
+#
+# On a single-node cluster the replicas share a node (pod-level failover, not
+# node loss); the anti-affinity spreads them across nodes when there are any.
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
 metadata:
   name: rabbitmq
 spec:
-  selector: { app: rabbitmq }
-  ports:
-    - { name: amqp, port: 5672 }
-    - { name: management, port: 15672 }
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: rabbitmq
-spec:
-  serviceName: rabbitmq
-  replicas: 1
-  selector:
-    matchLabels: { app: rabbitmq }
-  template:
-    metadata:
-      labels: { app: rabbitmq }
-    spec:
-      containers:
-        - name: rabbitmq
-          image: rabbitmq:3-management
-          ports:
-            - { name: amqp, containerPort: 5672 }
-            - { name: management, containerPort: 15672 }
-          env:
-            - name: RABBITMQ_DEFAULT_USER
-              valueFrom: { secretKeyRef: { name: rabbitmq-secret, key: RABBITMQ_USER } }
-            - name: RABBITMQ_DEFAULT_PASS
-              valueFrom: { secretKeyRef: { name: rabbitmq-secret, key: RABBITMQ_PASS } }
-          readinessProbe:
-            exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
-            initialDelaySeconds: 20
-            periodSeconds: 10
-            timeoutSeconds: 10
-          livenessProbe:
-            exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 10
-          resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits: { memory: 768Mi }
-          volumeMounts:
-            - { name: data, mountPath: /var/lib/rabbitmq }
-  volumeClaimTemplates:
-    - metadata: { name: data }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 1Gi } }
+  replicas: 3
+  persistence:
+    storage: 1Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 768Mi }
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: rabbitmq

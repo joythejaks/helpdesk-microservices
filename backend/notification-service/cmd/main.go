@@ -66,7 +66,10 @@ func main() {
 	delivery.Init([]byte(config.AppConfig.JWTSecret))
 
 	// start consumer (non-blocking, auto-reconnect)
-	consumer.StartConsumer(rabbitURL, notificationUsecase)
+	if err := consumer.ValidateQueueType(config.AppConfig.RabbitQueueType); err != nil {
+		logger.Log.Fatal(err)
+	}
+	consumer.StartConsumer(rabbitURL, config.AppConfig.RabbitQueueType, notificationUsecase)
 
 	// custom mux — hindari register ke DefaultServeMux global
 	mux := http.NewServeMux()

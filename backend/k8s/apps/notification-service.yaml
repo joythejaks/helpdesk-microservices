@@ -4,7 +4,7 @@ metadata:
   name: notification-service-config
 data:
   APP_PORT: "8083"
-  DB_HOST: notification-db
+  DB_HOST: notification-db-rw
   DB_PORT: "5432"
   DB_USER: notification
   DB_NAME: notification_db
@@ -16,6 +16,8 @@ data:
   # cover the cluster's pod CIDR (10.244.0.0/16 on Docker Desktop; check
   # with `kubectl cluster-info dump | grep -m1 cluster-cidr` elsewhere).
   TRUSTED_PROXIES: 10.244.0.0/16
+  # Must match ticket-service: both declare the ticket_created queue.
+  RABBITMQ_QUEUE_TYPE: quorum
   WS_RATE_LIMIT_RPS: "5"
   WS_RATE_LIMIT_BURST: "10"
   MAX_WS_CONNECTIONS: "1000"

@@ -66,7 +66,10 @@ func main() {
 	attachmentUsecase := usecase.NewAttachmentUsecase(attachmentRepo, ticketUsecase)
 
 	// RabbitMQ
-	publisher, err := messaging.NewPublisher(rabbitURL)
+	if err := messaging.ValidateQueueType(config.AppConfig.RabbitQueueType); err != nil {
+		logger.Log.Fatal(err)
+	}
+	publisher, err := messaging.NewPublisher(rabbitURL, config.AppConfig.RabbitQueueType)
 	if err != nil {
 		logger.Log.Warn("rabbitmq not ready:", err)
 	}

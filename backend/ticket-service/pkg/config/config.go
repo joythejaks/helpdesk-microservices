@@ -9,6 +9,7 @@ import (
 type Config struct {
 	AppPort              string
 	RabbitMQURL          string
+	RabbitQueueType      string
 	DBHost               string
 	DBUser               string
 	DBPassword           string
@@ -26,6 +27,7 @@ func Load() {
 	AppConfig = Config{
 		AppPort:              os.Getenv("APP_PORT"),
 		RabbitMQURL:          os.Getenv("RABBITMQ_URL"),
+		RabbitQueueType:      queueTypeOrDefault(os.Getenv("RABBITMQ_QUEUE_TYPE")),
 		DBHost:               os.Getenv("DB_HOST"),
 		DBUser:               os.Getenv("DB_USER"),
 		DBPassword:           os.Getenv("DB_PASSWORD"),
@@ -48,6 +50,16 @@ func Load() {
 	if AppConfig.InternalSecret == "" {
 		log.Fatal("INTERNAL_SHARED_SECRET is required")
 	}
+}
+
+// queueTypeOrDefault defaults to classic, which is what existing queues (and
+// docker compose) use; quorum is opted into with RABBITMQ_QUEUE_TYPE=quorum.
+// Validation happens in main so config stays free of the messaging package.
+func queueTypeOrDefault(raw string) string {
+	if raw == "" {
+		return "classic"
+	}
+	return raw
 }
 
 func parseFloatOrDefault(raw string, def float64) float64 {

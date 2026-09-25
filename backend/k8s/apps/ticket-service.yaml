@@ -4,10 +4,12 @@ metadata:
   name: ticket-service-config
 data:
   APP_PORT: "8082"
-  DB_HOST: ticket-db
+  DB_HOST: ticket-db-rw
   DB_PORT: "5432"
   DB_USER: ticket
   DB_NAME: ticket_db
+  # Must match notification-service: both declare the ticket_created queue.
+  RABBITMQ_QUEUE_TYPE: quorum
   TICKET_RATE_LIMIT_RPS: "5"
   TICKET_RATE_LIMIT_BURST: "10"
   REDIS_URL: redis://redis:6379/0

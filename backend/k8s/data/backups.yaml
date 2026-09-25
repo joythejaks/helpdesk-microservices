@@ -38,7 +38,7 @@ spec:
                 - -c
                 - |
                   set -e
-                  pg_dump -h auth-db -U auth auth_db | gzip > /backups/auth_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  pg_dump -h auth-db-r -U auth auth_db | gzip > /backups/auth_db-$(date +%Y%m%d-%H%M%S).sql.gz
                   find /backups -name 'auth_db-*.sql.gz' -mtime +7 -delete
               volumeMounts:
                 - { name: backups, mountPath: /backups }
@@ -72,7 +72,7 @@ spec:
                 - -c
                 - |
                   set -e
-                  pg_dump -h ticket-db -U ticket ticket_db | gzip > /backups/ticket_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  pg_dump -h ticket-db-r -U ticket ticket_db | gzip > /backups/ticket_db-$(date +%Y%m%d-%H%M%S).sql.gz
                   find /backups -name 'ticket_db-*.sql.gz' -mtime +7 -delete
               volumeMounts:
                 - { name: backups, mountPath: /backups }
@@ -106,7 +106,7 @@ spec:
                 - -c
                 - |
                   set -e
-                  pg_dump -h notification-db -U notification notification_db | gzip > /backups/notification_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  pg_dump -h notification-db-r -U notification notification_db | gzip > /backups/notification_db-$(date +%Y%m%d-%H%M%S).sql.gz
                   find /backups -name 'notification_db-*.sql.gz' -mtime +7 -delete
               volumeMounts:
                 - { name: backups, mountPath: /backups }

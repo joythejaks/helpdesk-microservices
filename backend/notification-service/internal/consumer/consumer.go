@@ -53,10 +53,10 @@ func IsConnected() bool {
 // event to whichever WebSocket clients are connected to *this* replica.
 // Splitting them avoids double-persisting the same event once more than
 // one replica is running.
-func StartConsumer(url string, notifier *usecase.NotificationUsecase) {
+func StartConsumer(url, queueType string, notifier *usecase.NotificationUsecase) {
 	go func() {
 		for {
-			if err := consumePersist(url, notifier); err != nil {
+			if err := consumePersist(url, queueType, notifier); err != nil {
 				log.Println("RabbitMQ persist consumer disconnected:", err)
 			}
 
@@ -80,7 +80,7 @@ func StartConsumer(url string, notifier *usecase.NotificationUsecase) {
 // consumePersist owns the exactly-once-across-the-fleet side: the shared
 // durable queue, bound to the fanout exchange so it keeps receiving every
 // event exactly as it did before this queue existed alongside a fanout.
-func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
+func consumePersist(url, queueType string, notifier *usecase.NotificationUsecase) error {
 	conn, err := dialWithRetry(url, 15, startupRetryDelay)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 		return err
 	}
 
-	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, nil)
+	dlq, err := ch.QueueDeclare(dlqQueue, true, false, false, false, dlqArgs(queueType))
 	if err != nil {
 		return err
 	}
@@ -110,9 +110,7 @@ func consumePersist(url string, notifier *usecase.NotificationUsecase) error {
 		return err
 	}
 
-	q, err := ch.QueueDeclare(persistQueue, true, false, false, false, amqp091.Table{
-		"x-dead-letter-exchange": dlxExchange,
-	})
+	q, err := ch.QueueDeclare(persistQueue, true, false, false, false, mainQueueArgs(queueType))
 	if err != nil {
 		return err
 	}

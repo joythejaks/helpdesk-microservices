@@ -10,6 +10,7 @@ import (
 type Config struct {
 	AppPort          string
 	RabbitMQURL      string
+	RabbitQueueType  string
 	JWTSecret        string
 	AllowedOrigins   []string
 	WSRateLimitRPS   float64
@@ -30,6 +31,7 @@ func Load() {
 	AppConfig = Config{
 		AppPort:          os.Getenv("APP_PORT"),
 		RabbitMQURL:      os.Getenv("RABBITMQ_URL"),
+		RabbitQueueType:  queueTypeOrDefault(os.Getenv("RABBITMQ_QUEUE_TYPE")),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
 		AllowedOrigins:   parseOrigins(os.Getenv("ALLOWED_ORIGINS")),
 		WSRateLimitRPS:   parseFloatOrDefault(os.Getenv("WS_RATE_LIMIT_RPS"), 5),
@@ -74,6 +76,16 @@ func parseOrigins(raw string) []string {
 		}
 	}
 	return origins
+}
+
+// queueTypeOrDefault defaults to classic, which is what existing queues (and
+// docker compose) use; quorum is opted into with RABBITMQ_QUEUE_TYPE=quorum.
+// Validation happens in main so config stays free of the consumer package.
+func queueTypeOrDefault(raw string) string {
+	if raw == "" {
+		return "classic"
+	}
+	return raw
 }
 
 // splitCSV splits a comma-separated env value, dropping blanks.
