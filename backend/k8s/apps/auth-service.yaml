@@ -58,9 +58,15 @@ spec:
           readinessProbe:
             httpGet: { path: /health, port: 8081 }
             periodSeconds: 5
+          # Login is bcrypt-bound (~tens of ms of pure CPU per request), so
+          # this service needs far more CPU than the others. In a load test
+          # a 50m request / 500m limit saturated at ~500% of request, the
+          # gateway timed out waiting on login (10s) and p95 hit 7s while
+          # replicas were still starting. A bigger request also makes the
+          # HPA's 70% trigger fire earlier in absolute terms.
           resources:
-            requests: { cpu: 50m, memory: 64Mi }
-            limits: { cpu: 500m, memory: 256Mi }
+            requests: { cpu: 200m, memory: 64Mi }
+            limits: { cpu: "1", memory: 256Mi }
 ---
 apiVersion: v1
 kind: Service

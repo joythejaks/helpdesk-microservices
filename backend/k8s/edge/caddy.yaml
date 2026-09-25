@@ -60,6 +60,13 @@ metadata:
   name: caddy
 spec:
   type: LoadBalancer
+  # Local keeps the client's source address. With the default (Cluster)
+  # kube-proxy rewrites it to a node/bridge address, so every client looks
+  # like the same IP and the per-IP rate limits (gateway, /ws) collapse into
+  # one shared bucket. Note Docker Desktop's own LoadBalancer proxy still
+  # re-originates the connection, so locally the address seen is that
+  # proxy's; on a real cloud load balancer this preserves the real client.
+  externalTrafficPolicy: Local
   selector: { app: caddy }
   ports:
     - { name: https, port: 443, targetPort: 443 }

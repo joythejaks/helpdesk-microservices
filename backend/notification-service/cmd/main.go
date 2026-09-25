@@ -60,6 +60,9 @@ func main() {
 	notificationHandler := delivery.NewNotificationHandler(notificationUsecase)
 
 	ws.Init([]byte(config.AppConfig.JWTSecret), config.AppConfig.AllowedOrigins, config.AppConfig.MaxWSConnections)
+	if err := ws.SetTrustedProxies(config.AppConfig.TrustedProxies); err != nil {
+		logger.Log.Fatal(err)
+	}
 	delivery.Init([]byte(config.AppConfig.JWTSecret))
 
 	// start consumer (non-blocking, auto-reconnect)
