@@ -5,6 +5,19 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+)
+
+// Default database pool sizing, per replica. Each service has its own
+// Postgres (max_connections defaults to 100, a few of which are reserved for
+// superuser/operator/backup use), and the HPA can run up to 4 replicas, so a
+// replica gets 20: 4 x 20 = 80 leaves headroom. Left unset, database/sql
+// opens connections without limit, and 4 busy replicas can exceed
+// max_connections ("too many clients already").
+const (
+	defaultDBMaxOpenConns    = 20
+	defaultDBMaxIdleConns    = 5
+	defaultDBConnMaxLifetime = 30 * time.Minute
 )
 
 type Config struct {
@@ -23,6 +36,10 @@ type Config struct {
 	DBPassword       string
 	DBName           string
 	DBPort           string
+
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime time.Duration
 }
 
 var AppConfig Config
@@ -44,6 +61,10 @@ func Load() {
 		DBPassword:       os.Getenv("DB_PASSWORD"),
 		DBName:           os.Getenv("DB_NAME"),
 		DBPort:           os.Getenv("DB_PORT"),
+
+		DBMaxOpenConns:    parseIntOrDefault(os.Getenv("DB_MAX_OPEN_CONNS"), defaultDBMaxOpenConns),
+		DBMaxIdleConns:    parseIntOrDefault(os.Getenv("DB_MAX_IDLE_CONNS"), defaultDBMaxIdleConns),
+		DBConnMaxLifetime: parseDurationOrDefault(os.Getenv("DB_CONN_MAX_LIFETIME"), defaultDBConnMaxLifetime),
 	}
 
 	if AppConfig.AppPort == "" {
@@ -104,6 +125,17 @@ func parseFloatOrDefault(raw string, def float64) float64 {
 		return def
 	}
 	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}
+
+func parseDurationOrDefault(raw string, def time.Duration) time.Duration {
+	if raw == "" {
+		return def
+	}
+	v, err := time.ParseDuration(raw)
 	if err != nil || v <= 0 {
 		return def
 	}

@@ -4,6 +4,19 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
+)
+
+// Default database pool sizing, per replica. Each service has its own
+// Postgres (max_connections defaults to 100, a few of which are reserved for
+// superuser/operator/backup use), and the HPA can run up to 4 replicas, so a
+// replica gets 20: 4 x 20 = 80 leaves headroom. Left unset, database/sql
+// opens connections without limit, and 4 busy replicas can exceed
+// max_connections ("too many clients already").
+const (
+	defaultDBMaxOpenConns    = 20
+	defaultDBMaxIdleConns    = 5
+	defaultDBConnMaxLifetime = 30 * time.Minute
 )
 
 type Config struct {
@@ -19,6 +32,9 @@ type Config struct {
 	TicketRateLimitRPS   float64
 	TicketRateLimitBurst float64
 	RedisURL             string
+	DBMaxOpenConns       int
+	DBMaxIdleConns       int
+	DBConnMaxLifetime    time.Duration
 }
 
 var AppConfig Config
@@ -37,6 +53,9 @@ func Load() {
 		TicketRateLimitRPS:   parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_RPS"), 5),
 		TicketRateLimitBurst: parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_BURST"), 10),
 		RedisURL:             os.Getenv("REDIS_URL"),
+		DBMaxOpenConns:       parseIntOrDefault(os.Getenv("DB_MAX_OPEN_CONNS"), defaultDBMaxOpenConns),
+		DBMaxIdleConns:       parseIntOrDefault(os.Getenv("DB_MAX_IDLE_CONNS"), defaultDBMaxIdleConns),
+		DBConnMaxLifetime:    parseDurationOrDefault(os.Getenv("DB_CONN_MAX_LIFETIME"), defaultDBConnMaxLifetime),
 	}
 
 	if AppConfig.AppPort == "" {
@@ -60,6 +79,28 @@ func queueTypeOrDefault(raw string) string {
 		return "classic"
 	}
 	return raw
+}
+
+func parseIntOrDefault(raw string, def int) int {
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}
+
+func parseDurationOrDefault(raw string, def time.Duration) time.Duration {
+	if raw == "" {
+		return def
+	}
+	v, err := time.ParseDuration(raw)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
 }
 
 func parseFloatOrDefault(raw string, def float64) float64 {
