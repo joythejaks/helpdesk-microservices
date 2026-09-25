@@ -1,0 +1,65 @@
+# TLS front door, same approach as docker compose: Caddy with local_certs
+# (its own locally trusted CA) in front of the gateway, plus a route that
+# puts notification-service's /ws and REST API behind TLS too. The Caddyfile
+# itself is generated from backend/Caddyfile (single source for compose and
+# Kubernetes) by kustomization.yaml.
+#
+# LoadBalancer: Docker Desktop publishes this on localhost:443. On a
+# cloud cluster the provider allocates an external IP instead.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 100Mi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+spec:
+  replicas: 1
+  # Recreate: the data PVC is ReadWriteOnce, so an old pod must release it
+  # before the new one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: caddy }
+  template:
+    metadata:
+      labels: { app: caddy }
+    spec:
+      containers:
+        - name: caddy
+          image: caddy:2.9-alpine
+          ports:
+            - { name: https, containerPort: 443 }
+          env:
+            # The mechanism for the real domain: set this (and remove
+            # local_certs from the Caddyfile) when deploying for real.
+            - { name: SITE_ADDRESS, value: localhost }
+          readinessProbe:
+            tcpSocket: { port: 443 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - { name: caddyfile, mountPath: /etc/caddy/Caddyfile, subPath: Caddyfile }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: caddyfile
+          configMap: { name: caddyfile }
+        - name: data
+          persistentVolumeClaim: { claimName: caddy-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: caddy
+spec:
+  type: LoadBalancer
+  selector: { app: caddy }
+  ports:
+    - { name: https, port: 443, targetPort: 443 }

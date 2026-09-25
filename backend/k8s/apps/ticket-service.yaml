@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticket-service-config
+data:
+  APP_PORT: "8082"
+  DB_HOST: ticket-db
+  DB_PORT: "5432"
+  DB_USER: ticket
+  DB_NAME: ticket_db
+  TICKET_RATE_LIMIT_RPS: "5"
+  TICKET_RATE_LIMIT_BURST: "10"
+  REDIS_URL: redis://redis:6379/0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-service
+spec:
+  selector:
+    matchLabels: { app: ticket-service }
+  template:
+    metadata:
+      labels: { app: ticket-service }
+    spec:
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: ticket-service
+          image: helpdesk/ticket-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef: { name: ticket-service-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secrets, key: TICKET_DB_PASSWORD } }
+            - name: RABBITMQ_URL
+              valueFrom: { secretKeyRef: { name: rabbitmq-secret, key: RABBITMQ_URL } }
+            - name: INTERNAL_SHARED_SECRET
+              valueFrom: { secretKeyRef: { name: app-secrets, key: INTERNAL_SHARED_SECRET } }
+          # The service blocks on RabbitMQ (retrying for up to ~30s) before it
+          # opens its HTTP port, and RabbitMQ itself can take a minute to
+          # start. Liveness alone would kill the pod mid-startup, so the
+          # startup probe holds liveness off for up to ~150s.
+          startupProbe:
+            httpGet: { path: /healthz, port: 8082 }
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8082 }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: 8082 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+spec:
+  selector: { app: ticket-service }
+  ports:
+    - port: 8082
+      targetPort: 8082

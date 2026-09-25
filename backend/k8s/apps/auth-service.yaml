@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+data:
+  APP_PORT: "8081"
+  GIN_MODE: "release"
+  DB_HOST: auth-db
+  DB_PORT: "5432"
+  DB_USER: auth
+  DB_NAME: auth_db
+  ENABLE_SWAGGER: "false"
+  AUTH_RATE_LIMIT_RPS: "5"
+  AUTH_RATE_LIMIT_BURST: "10"
+  REDIS_URL: redis://redis:6379/0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  # No replicas: — the HPA (hpa.yaml) owns it; setting it here would reset
+  # the count on every apply.
+  selector:
+    matchLabels: { app: auth-service }
+  template:
+    metadata:
+      labels: { app: auth-service }
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: auth-service
+          image: helpdesk/auth-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef: { name: auth-service-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secrets, key: AUTH_DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: app-secrets, key: JWT_SECRET } }
+            - name: INTERNAL_SHARED_SECRET
+              valueFrom: { secretKeyRef: { name: app-secrets, key: INTERNAL_SHARED_SECRET } }
+          # auth-service's alpine image has no --healthcheck flag, so httpGet.
+          # Liveness never checks dependencies (a slow DB must not restart
+          # the pod); readiness does (pulls the pod out of traffic instead).
+          # Startup waits on its database (retrying), so hold liveness off
+          # for up to ~150s instead of killing the pod mid-startup.
+          startupProbe:
+            httpGet: { path: /healthz, port: 8081 }
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8081 }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: 8081 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+spec:
+  selector: { app: auth-service }
+  ports:
+    - port: 8081
+      targetPort: 8081

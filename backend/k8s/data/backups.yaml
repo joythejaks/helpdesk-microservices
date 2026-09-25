@@ -1,0 +1,115 @@
+# Daily pg_dump per database into one PVC, 7 days retained — the in-cluster
+# equivalent of the compose backup sidecars. NOTE: a PVC on the same disk as
+# the databases only defends against a lost/corrupted database volume; for
+# real durability point this at storage outside the cluster.
+# Restore: gunzip -c <file> | psql -U <user> -d <target-db> into a fresh
+# database (the dump has no DROP statements), same drill as compose.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-backups
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: { requests: { storage: 2Gi } }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: auth-db-backup
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:15
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: db-secrets, key: AUTH_DB_PASSWORD } }
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  pg_dump -h auth-db -U auth auth_db | gzip > /backups/auth_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  find /backups -name 'auth_db-*.sql.gz' -mtime +7 -delete
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: db-backups }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ticket-db-backup
+spec:
+  schedule: "10 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:15
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: db-secrets, key: TICKET_DB_PASSWORD } }
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  pg_dump -h ticket-db -U ticket ticket_db | gzip > /backups/ticket_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  find /backups -name 'ticket_db-*.sql.gz' -mtime +7 -delete
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: db-backups }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: notification-db-backup
+spec:
+  schedule: "20 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:15
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: db-secrets, key: NOTIFICATION_DB_PASSWORD } }
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  pg_dump -h notification-db -U notification notification_db | gzip > /backups/notification_db-$(date +%Y%m%d-%H%M%S).sql.gz
+                  find /backups -name 'notification_db-*.sql.gz' -mtime +7 -delete
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: db-backups }
