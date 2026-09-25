@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -68,14 +67,11 @@ func (rl *RateLimiter) cleanupLoop() {
 }
 
 // RateLimit throttles WebSocket upgrade attempts per client IP, guarding
-// against a client hammering /ws with connection attempts.
+// against a client hammering /ws with connection attempts. Behind a trusted
+// reverse proxy the client IP comes from X-Forwarded-For (see clientIP).
 func RateLimit(rl Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			host = r.RemoteAddr
-		}
-		if !rl.allow(host) {
+		if !rl.allow(clientIP(r)) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

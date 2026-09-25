@@ -52,21 +52,31 @@ function ensureAccount() {
   account = { email, password };
 }
 
+// A real client logs in once and reuses its token, so by default a VU logs in
+// every LOGIN_EVERY iterations (default 20). LOGIN_EVERY=1 logs in on every
+// iteration: a deliberate worst case, because login is bcrypt-bound (~150ms
+// of CPU each on a laptop VM) — at ~16 logins/s it alone needs ~2.3 cores
+// and starves everything else on a 4-CPU VM, which measures the machine
+// rather than the deployment.
+const LOGIN_EVERY = parseInt(__ENV.LOGIN_EVERY || '20', 10);
+let token = null;
+
 export default function () {
   ensureAccount();
 
-  // Login is bcrypt-bound, so it's what actually burns CPU in auth-service.
-  const login = http.post(
-    `${BASE}/auth/login`,
-    JSON.stringify(account),
-    { headers: JSON_HEADERS },
-  );
-  const ok = check(login, { 'login 200': (r) => r.status === 200 });
-  if (!ok) {
-    sleep(1);
-    return;
+  if (!token || __ITER % LOGIN_EVERY === 0) {
+    const login = http.post(
+      `${BASE}/auth/login`,
+      JSON.stringify(account),
+      { headers: JSON_HEADERS },
+    );
+    const ok = check(login, { 'login 200': (r) => r.status === 200 });
+    if (!ok) {
+      sleep(1);
+      return;
+    }
+    token = login.json('data.access_token');
   }
-  const token = login.json('data.access_token');
   const auth = { headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` } };
 
   const created = http.post(

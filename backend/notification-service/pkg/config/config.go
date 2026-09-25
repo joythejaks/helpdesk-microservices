@@ -14,6 +14,7 @@ type Config struct {
 	AllowedOrigins   []string
 	WSRateLimitRPS   float64
 	WSRateLimitBurst float64
+	TrustedProxies   []string
 	RedisURL         string
 	MaxWSConnections int
 	DBHost           string
@@ -33,6 +34,7 @@ func Load() {
 		AllowedOrigins:   parseOrigins(os.Getenv("ALLOWED_ORIGINS")),
 		WSRateLimitRPS:   parseFloatOrDefault(os.Getenv("WS_RATE_LIMIT_RPS"), 5),
 		WSRateLimitBurst: parseFloatOrDefault(os.Getenv("WS_RATE_LIMIT_BURST"), 10),
+		TrustedProxies:   splitCSV(os.Getenv("TRUSTED_PROXIES")),
 		RedisURL:         os.Getenv("REDIS_URL"),
 		MaxWSConnections: parseIntOrDefault(os.Getenv("MAX_WS_CONNECTIONS"), 1000),
 		DBHost:           os.Getenv("DB_HOST"),
@@ -72,6 +74,17 @@ func parseOrigins(raw string) []string {
 		}
 	}
 	return origins
+}
+
+// splitCSV splits a comma-separated env value, dropping blanks.
+func splitCSV(raw string) []string {
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func parseFloatOrDefault(raw string, def float64) float64 {
