@@ -234,6 +234,13 @@ func proxyErrorHandler(target *url.URL) func(http.ResponseWriter, *http.Request,
 func newUpstreamBreaker(name string) *gobreaker.CircuitBreaker[*http.Response] {
 	return gobreaker.NewCircuitBreaker[*http.Response](gobreaker.Settings{
 		Name: name,
+		// A client giving up says nothing about the upstream (see
+		// clientGoneError), so it neither counts as a failure nor as a
+		// success.
+		IsExcluded: func(err error) bool {
+			var gone *clientGoneError
+			return errors.As(err, &gone)
+		},
 		OnStateChange: func(name string, from, to gobreaker.State) {
 			logger.Log.Warnf("circuit breaker %s: %s -> %s", name, from, to)
 		},
@@ -250,10 +257,36 @@ type breakerTransport struct {
 	next    http.RoundTripper
 }
 
+// clientGoneError marks a transport error caused by the client giving up (it
+// hung up, or its own deadline passed) rather than by the upstream failing.
+// Without this, RoundTrip's `context canceled` was counted as an upstream
+// failure, so a handful of abandoned requests opened the circuit and every
+// other client got 503 for the whole open period — anyone could do that on
+// purpose by starting requests and dropping the connection.
+type clientGoneError struct{ err error }
+
+func (e *clientGoneError) Error() string { return e.err.Error() }
+func (e *clientGoneError) Unwrap() error { return e.err }
+
 func (t *breakerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return t.breaker.Execute(func() (*http.Response, error) {
-		return t.next.RoundTrip(req)
+	resp, err := t.breaker.Execute(func() (*http.Response, error) {
+		resp, err := t.next.RoundTrip(req)
+		// The request's own context is done, so this isn't the upstream's
+		// doing. The transport's own timeouts (dial, response headers) don't
+		// touch the request context, so a genuinely slow or dead upstream
+		// still counts.
+		if err != nil && req.Context().Err() != nil {
+			return nil, &clientGoneError{err}
+		}
+		return resp, err
 	})
+
+	// Hand the reverse proxy the original error, not the marker.
+	var gone *clientGoneError
+	if errors.As(err, &gone) {
+		return nil, gone.err
+	}
+	return resp, err
 }
 
 // proxyTo reverse-proxies to a pre-parsed target URL, keeping the request path.
