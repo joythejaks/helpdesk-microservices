@@ -21,6 +21,20 @@ func NewAttachmentHandler(u *usecase.AttachmentUsecase, p *messaging.Publisher) 
 	return &AttachmentHandler{usecase: u, publisher: p}
 }
 
+// @Summary Upload an attachment
+// @Description One file per request, 5 MB at most. Rate limited.
+// @Tags Attachments
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Param file formData file true "File to attach"
+// @Success 200 {object} response.Response{data=domain.TicketAttachment}
+// @Failure 400 {object} response.Response "missing file"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Failure 413 {object} response.Response "attachment too large (max 5MB)"
+// @Failure 429 {object} response.Response "rate limited"
+// @Router /tickets/{id}/attachments [post]
 func (h *AttachmentHandler) Create(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {
@@ -86,6 +100,14 @@ func (h *AttachmentHandler) Create(c *gin.Context) {
 	response.Success(c, attachment)
 }
 
+// @Summary List ticket attachments (metadata only)
+// @Tags Attachments
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Success 200 {object} response.Response{data=[]domain.TicketAttachment}
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id}/attachments [get]
 func (h *AttachmentHandler) List(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {
@@ -107,6 +129,16 @@ func (h *AttachmentHandler) List(c *gin.Context) {
 	response.Success(c, attachments)
 }
 
+// @Summary Download an attachment
+// @Description Returns the file content with its original Content-Type.
+// @Tags Attachments
+// @Produce octet-stream
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Param attachmentId path int true "Attachment ID"
+// @Success 200 {file} file
+// @Failure 404 {object} response.Response "attachment not found"
+// @Router /tickets/{id}/attachments/{attachmentId} [get]
 func (h *AttachmentHandler) Download(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {

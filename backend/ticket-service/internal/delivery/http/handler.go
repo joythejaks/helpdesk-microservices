@@ -82,6 +82,19 @@ type CreateTicketRequest struct {
 	Department string `json:"department"`
 }
 
+// Create opens a new ticket on behalf of the logged-in user.
+// @Summary Create a ticket
+// @Description Priority defaults to `Medium` and department to `Helpdesk`. The response only carries a message, not the ticket object (the ID is not returned). Rate limited.
+// @Tags Tickets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateTicketRequest true "Ticket data"
+// @Success 200 {object} response.Response "ticket created"
+// @Failure 400 {object} response.Response "invalid input"
+// @Failure 401 {object} response.Response "unauthorized"
+// @Failure 429 {object} response.Response "rate limited"
+// @Router /tickets [post]
 func (h *TicketHandler) Create(c *gin.Context) {
 	var req CreateTicketRequest
 
@@ -130,6 +143,25 @@ func (h *TicketHandler) Create(c *gin.Context) {
 	response.Success(c, "ticket created")
 }
 
+// GetTickets lists tickets according to the role of the caller.
+// @Summary List tickets
+// @Description Users only see their own tickets. Agents use `scope`: `mine` (default) or `queue` (unassigned tickets). Admins see everything.
+// @Tags Tickets
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number, starting at 1" default(1)
+// @Param limit query int false "Page size (max 100)" default(10)
+// @Param scope query string false "Agents only" Enums(mine, queue)
+// @Param status query string false "Filter by status" Enums(open, assigned, in_progress, pending, resolved, closed)
+// @Param priority query string false "Filter by priority"
+// @Param department query string false "Filter by department"
+// @Param search query string false "Search in title and description"
+// @Param overdue query bool false "Only tickets past their SLA deadline"
+// @Param from query string false "Created since (YYYY-MM-DD)"
+// @Param to query string false "Created until (YYYY-MM-DD)"
+// @Success 200 {object} response.Response{data=[]domain.Ticket}
+// @Failure 401 {object} response.Response "unauthorized"
+// @Router /tickets [get]
 func (h *TicketHandler) GetTickets(c *gin.Context) {
 
 	userID, role, ok := requireUser(c)
@@ -195,6 +227,20 @@ type AssignTicketRequest struct {
 
 // Assign hands a ticket to an agent — admins may target any agent id;
 // agents may only claim (leave agent_id at 0 / omit it) for themselves.
+// @Summary Assign a ticket to an agent
+// @Description Admins may pick any `agent_id`. Agents can only claim a ticket for themselves (empty body or no `agent_id`).
+// @Tags Tickets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Param request body AssignTicketRequest false "Target agent (admin only)"
+// @Success 200 {object} response.Response "ticket assigned"
+// @Failure 400 {object} response.Response "invalid ticket id"
+// @Failure 403 {object} response.Response "forbidden"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Failure 409 {object} response.Response "ticket already assigned"
+// @Router /tickets/{id}/assign [patch]
 func (h *TicketHandler) Assign(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {
@@ -240,6 +286,19 @@ type UpdateStatusRequest struct {
 
 // UpdateStatus transitions a ticket through the status workflow. Only the
 // assigned agent or an admin may call this.
+// @Summary Change ticket status
+// @Description Only the assigned agent or an admin. The transition must follow the status workflow.
+// @Tags Tickets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Param request body UpdateStatusRequest true "New status"
+// @Success 200 {object} response.Response "status updated"
+// @Failure 400 {object} response.Response "invalid input or invalid status transition"
+// @Failure 403 {object} response.Response "forbidden"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id}/status [patch]
 func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {
@@ -282,6 +341,17 @@ func (h *TicketHandler) UpdateStatus(c *gin.Context) {
 	response.Success(c, "status updated")
 }
 
+// @Summary Get a ticket
+// @Description Another user's ticket is answered with 404, not 403, so its existence does not leak.
+// @Tags Tickets
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Success 200 {object} response.Response{data=domain.Ticket}
+// @Failure 400 {object} response.Response "invalid ticket id"
+// @Failure 401 {object} response.Response "unauthorized"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id} [get]
 func (h *TicketHandler) GetByID(c *gin.Context) {
 
 	userID, role, ok := requireUser(c)
@@ -314,6 +384,15 @@ func (h *TicketHandler) GetByID(c *gin.Context) {
 
 // GetHistory returns a ticket's status audit trail — the "created to
 // resolved" timeline — subject to the same ownership rules as GetByID.
+// @Summary Ticket status history
+// @Tags Tickets
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Success 200 {object} response.Response{data=[]domain.TicketStatusHistory}
+// @Failure 400 {object} response.Response "invalid ticket id"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id}/history [get]
 func (h *TicketHandler) GetHistory(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {

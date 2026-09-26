@@ -1,0 +1,781 @@
+basePath: /
+definitions:
+  domain.AgentStat:
+    properties:
+      agent_id:
+        type: integer
+      avg_resolution_seconds:
+        type: number
+      total_assigned:
+        type: integer
+      total_resolved:
+        type: integer
+    type: object
+  domain.CriticalTicketRow:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+    type: object
+  domain.CriticalTrend:
+    properties:
+      count:
+        type: integer
+      tickets:
+        items:
+          $ref: '#/definitions/domain.CriticalTicketRow'
+        type: array
+    type: object
+  domain.PeriodCount:
+    properties:
+      count:
+        type: integer
+      period:
+        type: string
+      status:
+        type: string
+    type: object
+  domain.Ticket:
+    properties:
+      assigned_agent_id:
+        type: integer
+      assigned_at:
+        type: string
+      closed_at:
+        type: string
+      created_at:
+        type: string
+      department:
+        description: |-
+          Department is a ticket category/routing tag, not the requester's
+          identity. The requester's real identity is UserID — resolve a display
+          name for it via GET /me or GET /admin/agents, don't trust free text.
+        type: string
+      description:
+        type: string
+      due_at:
+        description: |-
+          DueAt is the SLA deadline, computed from Priority at creation time —
+          see SLADuration in ticket_usecase.go.
+        type: string
+      id:
+        type: integer
+      priority:
+        type: string
+      resolved_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  domain.TicketAttachment:
+    properties:
+      content_type:
+        type: string
+      created_at:
+        type: string
+      filename:
+        type: string
+      id:
+        type: integer
+      size:
+        type: integer
+      ticket_id:
+        type: integer
+      uploader_id:
+        type: integer
+    type: object
+  domain.TicketComment:
+    properties:
+      author_id:
+        type: integer
+      author_role:
+        type: string
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_internal:
+        type: boolean
+      ticket_id:
+        type: integer
+    type: object
+  domain.TicketStatusHistory:
+    properties:
+      changed_at:
+        type: string
+      changed_by:
+        type: integer
+      from_status:
+        type: string
+      id:
+        type: integer
+      ticket_id:
+        type: integer
+      to_status:
+        type: string
+    type: object
+  http.AssignTicketRequest:
+    properties:
+      agent_id:
+        type: integer
+    type: object
+  http.CreateCommentRequest:
+    properties:
+      body:
+        maxLength: 4000
+        minLength: 1
+        type: string
+      is_internal:
+        type: boolean
+    required:
+    - body
+    type: object
+  http.CreateTicketRequest:
+    properties:
+      department:
+        description: |-
+          Department is a ticket category/routing tag (e.g. "IT", "HR"), not
+          the requester's identity — free text is fine here.
+        type: string
+      description:
+        type: string
+      priority:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  http.UpdateStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: |-
+    Tickets, comments, attachments and reports as clients see them: through the API Gateway.
+    "Try it out" calls the gateway, so the origin of this page must be listed in the gateway ALLOWED_ORIGINS.
+    Send the access token from POST /auth/login as `Bearer <token>` in the Authorization header.
+  title: Helpdesk Ticket API
+  version: "1.0"
+paths:
+  /reports/agents:
+    get:
+      description: Admin only. Without `from`/`to` the last 30 days are used.
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.AgentStat'
+                  type: array
+              type: object
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Agent performance
+      tags:
+      - Reports
+  /reports/critical-trends:
+    get:
+      description: Admin only.
+      parameters:
+      - default: 24
+        description: Time window in hours
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.CriticalTrend'
+              type: object
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: High-priority ticket trend
+      tags:
+      - Reports
+  /reports/queue-size:
+    get:
+      description: Admin only. The data field holds `queue_size`.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Number of unassigned tickets
+      tags:
+      - Reports
+  /reports/summary:
+    get:
+      description: Admin only. Without `from`/`to` the last 30 days are used.
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      - default: day
+        description: Grouping
+        enum:
+        - day
+        - week
+        - month
+        - year
+        in: query
+        name: group_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.PeriodCount'
+                  type: array
+              type: object
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Ticket summary per period
+      tags:
+      - Reports
+  /tickets:
+    get:
+      description: 'Users only see their own tickets. Agents use `scope`: `mine` (default)
+        or `queue` (unassigned tickets). Admins see everything.'
+      parameters:
+      - default: 1
+        description: Page number, starting at 1
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Agents only
+        enum:
+        - mine
+        - queue
+        in: query
+        name: scope
+        type: string
+      - description: Filter by status
+        enum:
+        - open
+        - assigned
+        - in_progress
+        - pending
+        - resolved
+        - closed
+        in: query
+        name: status
+        type: string
+      - description: Filter by priority
+        in: query
+        name: priority
+        type: string
+      - description: Filter by department
+        in: query
+        name: department
+        type: string
+      - description: Search in title and description
+        in: query
+        name: search
+        type: string
+      - description: Only tickets past their SLA deadline
+        in: query
+        name: overdue
+        type: boolean
+      - description: Created since (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Created until (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.Ticket'
+                  type: array
+              type: object
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List tickets
+      tags:
+      - Tickets
+    post:
+      consumes:
+      - application/json
+      description: Priority defaults to `Medium` and department to `Helpdesk`. The
+        response only carries a message, not the ticket object (the ID is not returned).
+        Rate limited.
+      parameters:
+      - description: Ticket data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ticket created
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: rate limited
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a ticket
+      tags:
+      - Tickets
+  /tickets/{id}:
+    get:
+      description: Another user's ticket is answered with 404, not 403, so its existence
+        does not leak.
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.Ticket'
+              type: object
+        "400":
+          description: invalid ticket id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get a ticket
+      tags:
+      - Tickets
+  /tickets/{id}/assign:
+    patch:
+      consumes:
+      - application/json
+      description: Admins may pick any `agent_id`. Agents can only claim a ticket
+        for themselves (empty body or no `agent_id`).
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Target agent (admin only)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/http.AssignTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ticket assigned
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid ticket id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: ticket already assigned
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Assign a ticket to an agent
+      tags:
+      - Tickets
+  /tickets/{id}/attachments:
+    get:
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.TicketAttachment'
+                  type: array
+              type: object
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List ticket attachments (metadata only)
+      tags:
+      - Attachments
+    post:
+      consumes:
+      - multipart/form-data
+      description: One file per request, 5 MB at most. Rate limited.
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: File to attach
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.TicketAttachment'
+              type: object
+        "400":
+          description: missing file
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "413":
+          description: attachment too large (max 5MB)
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: rate limited
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload an attachment
+      tags:
+      - Attachments
+  /tickets/{id}/attachments/{attachmentId}:
+    get:
+      description: Returns the file content with its original Content-Type.
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attachment ID
+        in: path
+        name: attachmentId
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: attachment not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Download an attachment
+      tags:
+      - Attachments
+  /tickets/{id}/comments:
+    get:
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.TicketComment'
+                  type: array
+              type: object
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: List ticket comments
+      tags:
+      - Comments
+    post:
+      consumes:
+      - application/json
+      description: '`is_internal: true` marks a staff-only note: the ticket owner
+        cannot see it and it triggers no notification.'
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Comment body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.TicketComment'
+              type: object
+        "400":
+          description: invalid input
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Add a comment
+      tags:
+      - Comments
+  /tickets/{id}/history:
+    get:
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/domain.TicketStatusHistory'
+                  type: array
+              type: object
+        "400":
+          description: invalid ticket id
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Ticket status history
+      tags:
+      - Tickets
+  /tickets/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Only the assigned agent or an admin. The transition must follow
+        the status workflow.
+      parameters:
+      - description: Ticket ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status updated
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: invalid input or invalid status transition
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: forbidden
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: ticket not found
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Change ticket status
+      tags:
+      - Tickets
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
