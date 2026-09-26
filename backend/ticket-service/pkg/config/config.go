@@ -32,6 +32,7 @@ type Config struct {
 	TicketRateLimitRPS   float64
 	TicketRateLimitBurst float64
 	RedisURL             string
+	EnableSwagger        bool
 	DBMaxOpenConns       int
 	DBMaxIdleConns       int
 	DBConnMaxLifetime    time.Duration
@@ -53,6 +54,7 @@ func Load() {
 		TicketRateLimitRPS:   parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_RPS"), 5),
 		TicketRateLimitBurst: parseFloatOrDefault(os.Getenv("TICKET_RATE_LIMIT_BURST"), 10),
 		RedisURL:             os.Getenv("REDIS_URL"),
+		EnableSwagger:        os.Getenv("ENABLE_SWAGGER") == "true",
 		DBMaxOpenConns:       parseIntOrDefault(os.Getenv("DB_MAX_OPEN_CONNS"), defaultDBMaxOpenConns),
 		DBMaxIdleConns:       parseIntOrDefault(os.Getenv("DB_MAX_IDLE_CONNS"), defaultDBMaxIdleConns),
 		DBConnMaxLifetime:    parseDurationOrDefault(os.Getenv("DB_CONN_MAX_LIFETIME"), defaultDBConnMaxLifetime),

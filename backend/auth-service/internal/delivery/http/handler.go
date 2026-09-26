@@ -57,13 +57,6 @@ func (h *AuthHandler) sessionCap() int {
 // dicek, dan gagal (503) kalau database tidak terjangkau, sehingga
 // Kubernetes readiness probe bisa menarik pod ini dari traffic saat DB
 // down alih-alih terus mengirim request ke pod yang tidak siap.
-// @Summary Cek kesehatan servis (readiness)
-// @Description Memberikan status kesehatan servis dan dependensi database
-// @Tags System
-// @Produce json
-// @Success 200 {object} response.Response
-// @Failure 503 {object} response.Response
-// @Router /health [get]
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	dbStatus := "connected"
 	if h.db == nil {
@@ -97,12 +90,15 @@ func (h *AuthHandler) HealthCheck(c *gin.Context) {
 // Kubernetes uses this to decide whether to restart the pod at all; a slow
 // DB reconnect should pull the pod from traffic (see HealthCheck above),
 // not restart the process.
-// @Summary Cek liveness servis
-// @Produce json
-// @Success 200 {object} response.Response
-// @Router /healthz [get]
 func (h *AuthHandler) Healthz(c *gin.Context) {
 	response.Success(c, "ok")
+}
+
+// TokenPair is the data payload of a successful login or refresh (declared
+// for the API docs; the handlers build the same shape as a map).
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type RegisterRequest struct {
@@ -119,14 +115,16 @@ type RegisterRequest struct {
 //
 
 // Register handle pendaftaran user baru
-// @Summary Register user baru
-// @Description Membuat akun baru dengan role default 'user' jika tidak ditentukan
+// @Summary Register a new user
+// @Description Creates a new account. Public registration always creates the `user` role.
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body RegisterRequest true "Data registrasi"
+// @Param request body RegisterRequest true "Registration data"
 // @Success 200 {object} response.Response "registered"
 // @Failure 400 {object} response.Response "invalid input"
+// @Failure 409 {object} response.Response "email already registered"
+// @Failure 429 {object} response.Response "rate limited"
 // @Router /register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -171,14 +169,16 @@ type LoginRequest struct {
 //
 
 // Login handle autentikasi user
-// @Summary Login user
-// @Description Melakukan login dan mengembalikan pasangan Access Token & Refresh Token
+// @Summary Log in
+// @Description Authenticates the user and returns an access token and a refresh token. Each login starts its own session (up to MAX_SESSIONS_PER_USER per user; the oldest is evicted).
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body LoginRequest true "Kredensial login"
-// @Success 200 {object} response.Response "Token pair"
+// @Param request body LoginRequest true "Login credentials"
+// @Success 200 {object} response.Response{data=TokenPair} "Token pair"
+// @Failure 400 {object} response.Response "invalid input"
 // @Failure 401 {object} response.Response "invalid credentials"
+// @Failure 429 {object} response.Response "rate limited"
 // @Router /login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
@@ -213,14 +213,16 @@ type RefreshRequest struct {
 }
 
 // Refresh handle rotasi token
-// @Summary Refresh token
-// @Description Menggunakan Refresh Token untuk mendapatkan Access Token baru (Token Rotation)
+// @Summary Refresh tokens
+// @Description Exchanges a refresh token for a new token pair (token rotation). Only the presented session is rotated; a replayed token is rejected with 401.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body RefreshRequest true "Refresh token"
-// @Success 200 {object} response.Response "New token pair"
+// @Success 200 {object} response.Response{data=TokenPair} "New token pair"
+// @Failure 400 {object} response.Response "invalid input"
 // @Failure 401 {object} response.Response "invalid refresh token"
+// @Failure 429 {object} response.Response "rate limited"
 // @Router /refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshRequest
@@ -364,13 +366,13 @@ type LogoutRequest struct {
 }
 
 // Logout handle penghapusan sesi
-// @Summary Logout user
-// @Description Tanpa body: menghapus semua sesi (refresh token) user. Dengan `refresh_token` di body: hanya sesi perangkat itu.
+// @Summary Log out
+// @Description Without a body, ends all sessions of the user. With `refresh_token` in the body, ends only that device's session.
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body LogoutRequest false "Refresh token perangkat yang keluar (opsional)"
+// @Param request body LogoutRequest false "Refresh token of the session to end (optional)"
 // @Success 200 {object} response.Response "logged out"
 // @Failure 401 {object} response.Response "unauthorized"
 // @Router /logout [post]
@@ -420,6 +422,18 @@ type CreateStaffRequest struct {
 
 // CreateStaff lets an admin provision an agent or admin account. There is
 // no public signup path for these roles — Register always forces "user".
+// @Summary Create an agent or admin account
+// @Description Admin only. There is no public registration path for these roles.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateStaffRequest true "Staff account data (role: agent or admin)"
+// @Success 200 {object} response.Response "staff account created"
+// @Failure 400 {object} response.Response "invalid input"
+// @Failure 403 {object} response.Response "forbidden"
+// @Failure 409 {object} response.Response "email already registered"
+// @Router /admin/staff [post]
 func (h *AuthHandler) CreateStaff(c *gin.Context) {
 	var req CreateStaffRequest
 
@@ -482,11 +496,11 @@ func toUserResponse(u *domain.User) UserResponse {
 
 // Me returns the currently authenticated caller's own account — lets the
 // frontend ask "who is logged in" without decoding the JWT itself.
-// @Summary Profil user yang sedang login
+// @Summary Current user profile
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} response.Response
+// @Success 200 {object} response.Response{data=UserResponse}
 // @Failure 401 {object} response.Response "unauthorized"
 // @Router /me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
@@ -513,12 +527,12 @@ type ChangePasswordRequest struct {
 
 // ChangePassword lets the authenticated caller rotate their own password —
 // self-service only, acts on the ID from X-User-ID, never a body-supplied ID.
-// @Summary Ganti password sendiri
+// @Summary Change own password
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body ChangePasswordRequest true "Password lama & baru"
+// @Param request body ChangePasswordRequest true "Current and new password"
 // @Success 200 {object} response.Response
 // @Failure 401 {object} response.Response "unauthorized or wrong password"
 // @Router /change-password [post]
@@ -562,13 +576,15 @@ type UpdateProfileRequest struct {
 }
 
 // UpdateProfile lets the authenticated caller edit their own name/department.
-// @Summary Ubah profil sendiri
+// @Summary Update own profile
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body UpdateProfileRequest true "Nama & departemen baru"
-// @Success 200 {object} response.Response
+// @Param request body UpdateProfileRequest true "New name and department"
+// @Success 200 {object} response.Response{data=UserResponse}
+// @Failure 400 {object} response.Response "invalid input"
+// @Failure 401 {object} response.Response "unauthorized"
 // @Router /me [patch]
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userIDStr := c.GetHeader("X-User-ID")
@@ -599,12 +615,12 @@ type UpdateAvailabilityRequest struct {
 
 // UpdateAvailability lets the authenticated caller set their own presence
 // status ("available" | "busy" | "offline").
-// @Summary Ubah status ketersediaan sendiri
+// @Summary Update own availability
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body UpdateAvailabilityRequest true "Status baru"
+// @Param request body UpdateAvailabilityRequest true "New availability status"
 // @Success 200 {object} response.Response
 // @Failure 400 {object} response.Response "invalid availability value"
 // @Router /me/availability [patch]
@@ -637,11 +653,12 @@ func (h *AuthHandler) UpdateAvailability(c *gin.Context) {
 
 // ListAgents returns every agent account — lets an admin pick an agent_id
 // when assigning a ticket.
-// @Summary Daftar akun agent
+// @Summary List agent accounts
 // @Tags Admin
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} response.Response
+// @Success 200 {object} response.Response{data=[]UserResponse}
+// @Failure 403 {object} response.Response "forbidden"
 // @Router /admin/agents [get]
 func (h *AuthHandler) ListAgents(c *gin.Context) {
 	users, err := h.usecase.ListByRole("agent")

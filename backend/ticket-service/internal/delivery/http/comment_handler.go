@@ -25,6 +25,18 @@ type CreateCommentRequest struct {
 	IsInternal bool   `json:"is_internal"`
 }
 
+// @Summary Add a comment
+// @Description `is_internal: true` marks a staff-only note: the ticket owner cannot see it and it triggers no notification.
+// @Tags Comments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Param request body CreateCommentRequest true "Comment body"
+// @Success 200 {object} response.Response{data=domain.TicketComment}
+// @Failure 400 {object} response.Response "invalid input"
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id}/comments [post]
 func (h *CommentHandler) Create(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {
@@ -69,6 +81,14 @@ func (h *CommentHandler) Create(c *gin.Context) {
 	response.Success(c, comment)
 }
 
+// @Summary List ticket comments
+// @Tags Comments
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Ticket ID"
+// @Success 200 {object} response.Response{data=[]domain.TicketComment}
+// @Failure 404 {object} response.Response "ticket not found"
+// @Router /tickets/{id}/comments [get]
 func (h *CommentHandler) List(c *gin.Context) {
 	userID, role, ok := requireUser(c)
 	if !ok {

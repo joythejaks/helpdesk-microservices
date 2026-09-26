@@ -13,6 +13,7 @@ data:
   TICKET_RATE_LIMIT_RPS: "5"
   TICKET_RATE_LIMIT_BURST: "10"
   REDIS_URL: redis://redis:6379/0
+  ENABLE_SWAGGER: "false"
 ---
 apiVersion: apps/v1
 kind: Deployment

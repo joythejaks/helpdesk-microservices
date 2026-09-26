@@ -15,9 +15,115 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/register": {
+        "/admin/agents": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List agent accounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/http.UserResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/staff": {
             "post": {
-                "description": "Membuat akun baru dengan role default 'user' jika tidak ditentukan",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. There is no public registration path for these roles.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create an agent or admin account",
+                "parameters": [
+                    {
+                        "description": "Staff account data (role: agent or admin)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.CreateStaffRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "staff account created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "email already registered",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -27,27 +133,27 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Register user baru",
+                "summary": "Change own password",
                 "parameters": [
                     {
-                        "description": "Kredensial dan profil user baru",
+                        "description": "Current and new password",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.RegisterRequest"
+                            "$ref": "#/definitions/http.ChangePasswordRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "registered",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.UserResponse"
+                            "$ref": "#/definitions/response.Response"
                         }
                     },
-                    "400": {
-                        "description": "invalid input",
+                    "401": {
+                        "description": "unauthorized or wrong password",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -57,7 +163,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Melakukan login dan mengembalikan pasangan Access Token \u0026 Refresh Token",
+                "description": "Authenticates the user and returns an access token and a refresh token. Each login starts its own session (up to MAX_SESSIONS_PER_USER per user; the oldest is evicted).",
                 "consumes": [
                     "application/json"
                 ],
@@ -67,15 +173,15 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Login user",
+                "summary": "Log in",
                 "parameters": [
                     {
-                        "description": "Kredensial login",
+                        "description": "Login credentials",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.LoginRequest"
+                            "$ref": "#/definitions/http.LoginRequest"
                         }
                     }
                 ],
@@ -83,7 +189,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Token pair",
                         "schema": {
-                            "$ref": "#/definitions/response.TokenResponse"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenPair"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     },
                     "401": {
@@ -91,63 +215,9 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
-                    }
-                }
-            }
-        },
-        "/refresh": {
-            "post": {
-                "description": "Menggunakan Refresh Token untuk mendapatkan Access Token baru (Token Rotation)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Refresh token",
-                "parameters": [
-                    {
-                        "description": "Refresh token",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RefreshRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "New token pair",
-                        "schema": {
-                            "$ref": "#/definitions/response.TokenResponse"
-                        }
                     },
-                    "401": {
-                        "description": "invalid refresh token",
-                        "schema": {
-                            "$ref": "#/definitions/response.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/health": {
-            "get": {
-                "description": "Memberikan status kesehatan servis dan dependensi database",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Cek kesehatan servis",
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    "429": {
+                        "description": "rate limited",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -162,14 +232,27 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menghapus refresh token dari database berdasarkan User ID",
+                "description": "Without a body, ends all sessions of the user. With ` + "`" + `refresh_token` + "`" + ` in the body, ends only that device's session.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Logout user",
+                "summary": "Log out",
+                "parameters": [
+                    {
+                        "description": "Refresh token of the session to end (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/http.LogoutRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "logged out",
@@ -185,37 +268,440 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Current user profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update own profile",
+                "parameters": [
+                    {
+                        "description": "New name and department",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/availability": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update own availability",
+                "parameters": [
+                    {
+                        "description": "New availability status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.UpdateAvailabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid availability value",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/refresh": {
+            "post": {
+                "description": "Exchanges a refresh token for a new token pair (token rotation). Only the presented session is rotated; a replayed token is rejected with 401.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh tokens",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New token pair",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/http.TokenPair"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "rate limited",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/register": {
+            "post": {
+                "description": "Creates a new account. Public registration always creates the ` + "`" + `user` + "`" + ` role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "registered",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "email already registered",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "429": {
+                        "description": "rate limited",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "dto.RegisterRequest": {
+        "http.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "old_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.CreateStaffRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "role"
+            ],
+            "properties": {
+                "department": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
                 "password"
             ],
             "properties": {
-                "email": { "type": "string" },
-                "password": { "type": "string" },
-                "role": { "type": "string" }
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72
+                }
             }
         },
-        "dto.LoginRequest": {
+        "http.LogoutRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.RefreshRequest": {
             "type": "object",
             "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "department",
                 "email",
+                "name",
                 "password"
             ],
             "properties": {
-                "email": { "type": "string" },
-                "password": { "type": "string" }
+                "department": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                }
             }
         },
-        "dto.RefreshRequest": {
+        "http.TokenPair": {
             "type": "object",
-            "required": [ "refresh_token" ],
             "properties": {
-                "refresh_token": { "type": "string" }
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.UpdateAvailabilityRequest": {
+            "type": "object",
+            "required": [
+                "availability"
+            ],
+            "properties": {
+                "availability": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.UpdateProfileRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "department": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "http.UserResponse": {
+            "type": "object",
+            "properties": {
+                "availability": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
             }
         },
         "response.Response": {
@@ -232,35 +718,6 @@ const docTemplate = `{
                     "type": "boolean"
                 }
             }
-        },
-        "response.TokenResponse": {
-            "type": "object",
-            "properties": {
-                "success": { "type": "boolean" },
-                "message": { "type": "string" },
-                "data": {
-                    "type": "object",
-                    "properties": {
-                        "access_token": { "type": "string" },
-                        "refresh_token": { "type": "string" }
-                    }
-                }
-            }
-        },
-        "response.UserResponse": {
-            "type": "object",
-            "properties": {
-                "success": { "type": "boolean" },
-                "message": { "type": "string" },
-                "data": {
-                    "type": "object",
-                    "properties": {
-                        "id": { "type": "integer" },
-                        "email": { "type": "string" },
-                        "role": { "type": "string" }
-                    }
-                }
-            }
         }
     },
     "securityDefinitions": {
@@ -275,13 +732,15 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8081",
-	BasePath:         "/",
+	Host:             "localhost:8080",
+	BasePath:         "/auth",
 	Schemes:          []string{},
 	Title:            "Helpdesk Auth Service API",
-	Description:      "API dokumentasi untuk layanan autentikasi Helpdesk Microservices.",
+	Description:      "Authentication endpoints as clients see them: through the API Gateway (every path is prefixed with /auth).\n\"Try it out\" calls the gateway, so the origin of this page must be listed in the gateway ALLOWED_ORIGINS.\nSend the access token as `Bearer <token>` in the Authorization header.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

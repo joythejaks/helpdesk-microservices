@@ -27,9 +27,11 @@ import (
 
 // @title Helpdesk Auth Service API
 // @version 1.0
-// @description API dokumentasi untuk layanan autentikasi Helpdesk Microservices.
-// @host localhost:8081
-// @BasePath /
+// @description Authentication endpoints as clients see them: through the API Gateway (every path is prefixed with /auth).
+// @description "Try it out" calls the gateway, so the origin of this page must be listed in the gateway ALLOWED_ORIGINS.
+// @description Send the access token as `Bearer <token>` in the Authorization header.
+// @host localhost:8080
+// @BasePath /auth
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
