@@ -181,4 +181,10 @@ cd flutter_app/helpdesk_app && flutter analyze && flutter test
 
 ## Before deploying
 
-Set `ALLOWED_ORIGINS`, rotate `JWT_SECRET` and the other secrets, and give Caddy a real domain. Still open: centralized logs and tracing, alerting, NetworkPolicies, and TLS to the database (`sslmode=disable` today).
+The defaults are for local development. Before real traffic:
+
+1. **Secrets.** Give every environment its own values; never reuse the dev ones. `JWT_SECRET` must be identical on api-gateway, auth-service and notification-service, and `INTERNAL_SHARED_SECRET` identical on api-gateway, auth-service and ticket-service. Generate values with `openssl rand -base64 48`. Rotating `JWT_SECRET` signs every user out. Database passwords are stored inside the existing database volumes, so changing `DB_PASSWORD` in Compose also needs an `ALTER ROLE` in each database (or a volume reset, which deletes data). On Kubernetes, `k8s/scripts/gen-secrets.sh` already generates unique values.
+2. **CORS.** `ALLOWED_ORIGINS` (api-gateway and notification-service) lists the browser origins allowed to call the API; the examples use `https://localhost` (Caddy). The mobile app is not subject to CORS, and WebSocket clients that send no `Origin` header are always accepted. Add a web origin only if you serve a web client.
+3. **Domain and certificates.** Caddy uses its own local CA (`local_certs`). For a real domain: point DNS at the host, set `SITE_ADDRESS` to the domain (the `caddy` service in Compose, the `caddy` Deployment in `k8s/edge/caddy.yaml`), delete the `local_certs` block from `Caddyfile`, and publish ports 80 and 443 (Compose publishes only 443; Kubernetes exposes only 443 on the Caddy Service). Caddy then obtains a Let's Encrypt certificate and redirects HTTP to HTTPS. Update `ALLOWED_ORIGINS` to the new origin if a browser client is used.
+
+Still open: centralized logs and tracing, alerting, NetworkPolicies, and TLS to the database (`sslmode=disable` today).
