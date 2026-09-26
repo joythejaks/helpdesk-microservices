@@ -14,14 +14,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// defaultMaxSessions is used when the handler is built without a cap (tests,
+// or a zero config value).
+const defaultMaxSessions = 5
 
 type AuthHandler struct {
 	usecase     *usecase.AuthUsecase
 	refreshRepo domain.RefreshTokenRepository
 	jwtSecret   []byte
 	db          *gorm.DB
+	maxSessions int // most concurrent sessions (devices) per user; oldest evicted
 }
 
 func NewAuthHandler(
@@ -29,13 +35,22 @@ func NewAuthHandler(
 	refreshRepo domain.RefreshTokenRepository,
 	jwtSecret []byte,
 	db *gorm.DB,
+	maxSessions int,
 ) *AuthHandler {
 	return &AuthHandler{
 		usecase:     u,
 		refreshRepo: refreshRepo,
 		jwtSecret:   jwtSecret,
 		db:          db,
+		maxSessions: maxSessions,
 	}
+}
+
+func (h *AuthHandler) sessionCap() int {
+	if h.maxSessions > 0 {
+		return h.maxSessions
+	}
+	return defaultMaxSessions
 }
 
 // HealthCheck adalah readiness check — dependensi (database) benar-benar
@@ -179,7 +194,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	tokenResponse, err := h.generateTokenPair(user.ID, user.Role)
+	tokenResponse, err := h.issueSession(user.ID, user.Role)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to process session", "internal_error")
 		return
@@ -248,11 +263,24 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 	userID := uint(userIDClaim)
 
+	// The stored session must belong to the user the token claims to be for.
+	if rt.UserID != userID {
+		response.Error(c, 401, "invalid refresh token", "unauthorized")
+		return
+	}
+
 	// Ambil role jika diperlukan, atau set default
 	role, _ := claims["role"].(string)
 
-	tokenResponse, err := h.generateTokenPair(userID, role)
+	// Rotate only THIS session, atomically: a token that was already used (or
+	// revoked) between the lookup above and now loses the race and gets 401,
+	// and the user's other devices stay signed in.
+	tokenResponse, err := h.rotateSession(req.RefreshToken, userID, role)
 	if err != nil {
+		if errors.Is(err, domain.ErrTokenNotFound) {
+			response.Error(c, 401, "invalid refresh token", "unauthorized")
+			return
+		}
 		response.Error(c, http.StatusInternalServerError, "failed to refresh session", "internal_error")
 		return
 	}
@@ -260,53 +288,89 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	response.Success(c, tokenResponse)
 }
 
-// Helper untuk mengurangi duplikasi pembuatan token
-func (h *AuthHandler) generateTokenPair(userID uint, role string) (map[string]string, error) {
-	// Access Token
+const (
+	accessTokenTTL  = 2 * time.Hour
+	refreshTokenTTL = 7 * 24 * time.Hour
+)
+
+// signTokens builds a signed access + refresh token pair without touching the
+// database. The refresh token carries a random jti: without it, two tokens
+// issued to the same user in the same second are byte-identical, which would
+// collide on the unique column now that a user can hold several sessions.
+func (h *AuthHandler) signTokens(userID uint, role string) (access, refresh string, refreshExp time.Time, err error) {
+	now := time.Now()
+
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
-		"exp":     time.Now().Add(2 * time.Hour).Unix(),
+		"exp":     now.Add(accessTokenTTL).Unix(),
 	})
-	accessString, err := accessToken.SignedString(h.jwtSecret)
+	access, err = accessToken.SignedString(h.jwtSecret)
 	if err != nil {
-		return nil, err
+		return "", "", time.Time{}, err
 	}
 
-	// Refresh Token
+	refreshExp = now.Add(refreshTokenTTL)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
-		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"exp":     refreshExp.Unix(),
+		"jti":     uuid.NewString(),
 	})
-	refreshString, err := refreshToken.SignedString(h.jwtSecret)
+	refresh, err = refreshToken.SignedString(h.jwtSecret)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return access, refresh, refreshExp, nil
+}
+
+// issueSession starts a NEW session (login). The user's other sessions are
+// left alone; only the per-user cap can evict the oldest one.
+func (h *AuthHandler) issueSession(userID uint, role string) (map[string]string, error) {
+	access, refresh, exp, err := h.signTokens(userID, role)
 	if err != nil {
 		return nil, err
 	}
-
-	// Rotasi di DB
-	if err := h.refreshRepo.DeleteByUser(userID); err != nil {
+	if err := h.refreshRepo.Create(&domain.RefreshToken{
+		UserID:    userID,
+		Token:     refresh,
+		ExpiresAt: &exp,
+	}, h.sessionCap()); err != nil {
 		return nil, err
 	}
-	if err := h.refreshRepo.Save(&domain.RefreshToken{
-		UserID: userID,
-		Token:  refreshString,
+	return map[string]string{"access_token": access, "refresh_token": refresh}, nil
+}
+
+// rotateSession swaps one session's refresh token for a new one.
+func (h *AuthHandler) rotateSession(oldRefresh string, userID uint, role string) (map[string]string, error) {
+	access, refresh, exp, err := h.signTokens(userID, role)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.refreshRepo.Rotate(oldRefresh, &domain.RefreshToken{
+		UserID:    userID,
+		Token:     refresh,
+		ExpiresAt: &exp,
 	}); err != nil {
 		return nil, err
 	}
+	return map[string]string{"access_token": access, "refresh_token": refresh}, nil
+}
 
-	return map[string]string{
-		"access_token":  accessString,
-		"refresh_token": refreshString,
-	}, nil
+// LogoutRequest is optional: with a refresh_token only that device's session
+// ends; without one every session of the user ends.
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 // Logout handle penghapusan sesi
 // @Summary Logout user
-// @Description Menghapus refresh token dari database berdasarkan User ID
+// @Description Tanpa body: menghapus semua sesi (refresh token) user. Dengan `refresh_token` di body: hanya sesi perangkat itu.
 // @Tags Auth
+// @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param request body LogoutRequest false "Refresh token perangkat yang keluar (opsional)"
 // @Success 200 {object} response.Response "logged out"
 // @Failure 401 {object} response.Response "unauthorized"
 // @Router /logout [post]
@@ -326,7 +390,18 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.refreshRepo.DeleteByUser(uint(userID)); err != nil {
+	// The body is optional, so an empty or unparsable one just means "no
+	// refresh token given" and falls back to ending every session — the safe
+	// direction, and what clients that send no body have always got.
+	var req LogoutRequest
+	_ = c.ShouldBindJSON(&req)
+
+	if req.RefreshToken != "" {
+		err = h.refreshRepo.DeleteSession(uint(userID), req.RefreshToken)
+	} else {
+		err = h.refreshRepo.DeleteByUser(uint(userID))
+	}
+	if err != nil {
 		logger.WithTraceId(c.GetString("TraceID")).WithError(err).Error("failed to logout")
 		response.Error(c, http.StatusInternalServerError, "failed logout", "internal_error")
 		return
@@ -468,6 +543,14 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		}
 		response.Error(c, http.StatusInternalServerError, "failed to change password", "internal_error")
 		return
+	}
+
+	// Sign every device out: a session on a lost or stolen device must not
+	// survive the password change. Access tokens already issued still work
+	// until they expire (up to 2h). The password is already changed, so a
+	// failure here is logged rather than reported as a failed change.
+	if err := h.refreshRepo.DeleteByUser(uint(userID)); err != nil {
+		logger.WithTraceId(c.GetString("TraceID")).WithError(err).Error("password changed but revoking sessions failed")
 	}
 
 	response.Success(c, "password changed")

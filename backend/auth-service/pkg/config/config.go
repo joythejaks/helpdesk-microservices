@@ -36,6 +36,10 @@ type Config struct {
 	DBMaxIdleConns    int
 	DBConnMaxLifetime time.Duration
 
+	// Most concurrent sessions (devices) one user may hold; logging in past
+	// it signs the oldest one out.
+	MaxSessionsPerUser int
+
 	BootstrapAdminEmail    string
 	BootstrapAdminPassword string
 }
@@ -60,6 +64,8 @@ func Load() {
 		DBMaxOpenConns:    parseIntOrDefault(os.Getenv("DB_MAX_OPEN_CONNS"), defaultDBMaxOpenConns),
 		DBMaxIdleConns:    parseIntOrDefault(os.Getenv("DB_MAX_IDLE_CONNS"), defaultDBMaxIdleConns),
 		DBConnMaxLifetime: parseDurationOrDefault(os.Getenv("DB_CONN_MAX_LIFETIME"), defaultDBConnMaxLifetime),
+
+		MaxSessionsPerUser: parseIntOrDefault(os.Getenv("MAX_SESSIONS_PER_USER"), 5),
 
 		BootstrapAdminEmail:    os.Getenv("BOOTSTRAP_ADMIN_EMAIL"),
 		BootstrapAdminPassword: os.Getenv("BOOTSTRAP_ADMIN_PASSWORD"),

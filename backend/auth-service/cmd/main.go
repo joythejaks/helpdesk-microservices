@@ -69,7 +69,7 @@ func main() {
 	refreshRepo := repository.NewRefreshTokenRepository(db)
 
 	// 🔥 UPDATE constructor
-	handler := delivery.NewAuthHandler(usecase, refreshRepo, jwtSecret, db)
+	handler := delivery.NewAuthHandler(usecase, refreshRepo, jwtSecret, db, config.AppConfig.MaxSessionsPerUser)
 
 	r := gin.Default()
 
