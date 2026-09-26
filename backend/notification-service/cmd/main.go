@@ -71,7 +71,7 @@ func main() {
 	}
 	consumer.StartConsumer(rabbitURL, config.AppConfig.RabbitQueueType, notificationUsecase)
 
-	// custom mux — hindari register ke DefaultServeMux global
+	// custom mux: avoid registering on the global DefaultServeMux
 	mux := http.NewServeMux()
 
 	// Shared across replicas via Redis when REDIS_URL is set; otherwise an

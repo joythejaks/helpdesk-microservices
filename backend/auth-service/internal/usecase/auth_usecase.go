@@ -53,7 +53,7 @@ func (u *AuthUsecase) Login(email, password string) (*domain.User, error) {
 		return nil, err
 	}
 
-	// cek password (bcrypt)
+	// check password (bcrypt)
 	if err := bcrypt.Compare(user.Password, password); err != nil {
 		return nil, err
 	}

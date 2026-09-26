@@ -8,7 +8,7 @@ import (
 
 var Log = logrus.New()
 
-// Fields adalah alias untuk logrus.Fields agar bisa digunakan di handler
+// Fields is an alias for logrus.Fields so handlers can use it directly
 type Fields = logrus.Fields
 
 func Init(service string) {
@@ -22,7 +22,7 @@ func Init(service string) {
 	}).Info("logger initialized")
 }
 
-// WithTraceId menambahkan trace_id ke dalam log untuk tracking antar servis
+// WithTraceId adds trace_id to a log entry for tracking across services
 func WithTraceId(traceId string) *logrus.Entry {
 	return Log.WithField("trace_id", traceId)
 }

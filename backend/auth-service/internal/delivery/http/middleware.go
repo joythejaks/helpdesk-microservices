@@ -45,7 +45,7 @@ func RequireRole(role string) gin.HandlerFunc {
 	}
 }
 
-// TraceMiddleware memastikan setiap request memiliki Trace ID untuk logging.
+// TraceMiddleware makes sure every request has a Trace ID for logging.
 // Reads X-Request-ID (the header api-gateway actually generates/forwards)
 // rather than X-Trace-ID, so cross-service tracing via this ID actually
 // correlates with the gateway's own logs instead of always minting a new,

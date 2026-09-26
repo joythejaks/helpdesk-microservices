@@ -53,10 +53,10 @@ func (h *AuthHandler) sessionCap() int {
 	return defaultMaxSessions
 }
 
-// HealthCheck adalah readiness check — dependensi (database) benar-benar
-// dicek, dan gagal (503) kalau database tidak terjangkau, sehingga
-// Kubernetes readiness probe bisa menarik pod ini dari traffic saat DB
-// down alih-alih terus mengirim request ke pod yang tidak siap.
+// HealthCheck is the readiness check: the database dependency is really
+// checked and a failure returns 503 when it is unreachable, so the
+// Kubernetes readiness probe can pull this pod out of traffic while the DB
+// is down instead of sending requests to a pod that is not ready.
 func (h *AuthHandler) HealthCheck(c *gin.Context) {
 	dbStatus := "connected"
 	if h.db == nil {
@@ -114,7 +114,7 @@ type RegisterRequest struct {
 // =======================
 //
 
-// Register handle pendaftaran user baru
+// Register handles new user registration
 // @Summary Register a new user
 // @Description Creates a new account. Public registration always creates the `user` role.
 // @Tags Auth
@@ -134,8 +134,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Role selalu "user" untuk registrasi publik — jangan pernah percaya role
-	// dari client, itu jalan pintas privilege escalation.
+	// The role is always "user" for public registration: never trust a role
+	// sent by the client, that is a shortcut to privilege escalation.
 	err := h.usecase.Register(req.Name, req.Email, req.Password, req.Department, "user")
 	if err != nil {
 		if errors.Is(err, usecase.ErrEmailTaken) {
@@ -143,8 +143,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			return
 		}
 
-		// Gunakan WithTraceId agar konsisten dengan endpoint lain.
-		// Detail error internal dicatat di log saja, tidak dikirim ke client.
+		// Use WithTraceId to stay consistent with the other endpoints.
+		// Internal error details are only logged, never sent to the client.
 		logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
 			"email": req.Email,
 			"error": err.Error(),
@@ -200,7 +200,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Gunakan logger.WithTraceId yang sudah kita buat di pkg/logger
+	// Use logger.WithTraceId from pkg/logger
 	logger.WithTraceId(c.GetString("TraceID")).WithFields(logger.Fields{
 		"user_id": user.ID,
 	}).Info("user logged in")
@@ -232,7 +232,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// 🔥 cek di DB
+	// check the session in the DB
 	rt, err := h.refreshRepo.Find(req.RefreshToken)
 	if err != nil || rt == nil {
 		response.Error(c, 401, "invalid refresh token", "unauthorized")
@@ -257,7 +257,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// 🔥 type safe conversion
+	// type-safe conversion
 	userIDClaim, ok := claims["user_id"].(float64)
 	if !ok {
 		response.Error(c, 401, "invalid refresh token", "unauthorized")
@@ -271,7 +271,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// Ambil role jika diperlukan, atau set default
+	// Read the role if needed, or fall back to the default
 	role, _ := claims["role"].(string)
 
 	// Rotate only THIS session, atomically: a token that was already used (or
@@ -365,7 +365,7 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// Logout handle penghapusan sesi
+// Logout ends a session
 // @Summary Log out
 // @Description Without a body, ends all sessions of the user. With `refresh_token` in the body, ends only that device's session.
 // @Tags Auth
@@ -378,7 +378,7 @@ type LogoutRequest struct {
 // @Router /logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 
-	// 🔥 ambil dari gateway header (JWT)
+	// read the user ID from the gateway header (set from the JWT)
 	userIDStr := c.GetHeader("X-User-ID")
 
 	if userIDStr == "" {
@@ -386,7 +386,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.ParseUint(userIDStr, 10, 0) // Gunakan 0 agar otomatis mendeteksi ukuran uint platform
+	userID, err := strconv.ParseUint(userIDStr, 10, 0) // bitSize 0 selects the platform's uint size
 	if err != nil {
 		response.Error(c, 400, "invalid user id format", "bad_request")
 		return
@@ -687,9 +687,9 @@ func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLi
 	r.GET("/health", h.HealthCheck)
 	r.GET("/healthz", h.Healthz)
 
-	// Semua rute bisnis hanya boleh diakses lewat API Gateway (dibuktikan
-	// dengan X-Internal-Secret) — mencegah bypass langsung ke service ini,
-	// yang penting khususnya untuk /logout yang percaya header X-User-ID.
+	// All business routes may only be reached through the API Gateway (proven
+	// by X-Internal-Secret), which prevents bypassing it and calling this
+	// service directly. This matters most for /logout, which trusts X-User-ID.
 	internalOnly := r.Group("/")
 	internalOnly.Use(InternalOnlyMiddleware(internalSecret))
 	{
@@ -701,10 +701,10 @@ func RegisterRoutes(r *gin.Engine, h *AuthHandler, internalSecret string, authLi
 			authRoutes.POST("/refresh", h.Refresh)
 		}
 
-		// Logout memerlukan user ID dari header yang diisi oleh Gateway
+		// Logout needs the user ID from the header set by the Gateway
 		internalOnly.POST("/logout", h.Logout)
 
-		// Siapa pun yang sudah login boleh tanya/ubah profilnya sendiri
+		// Any logged-in user may read and update their own profile
 		internalOnly.GET("/me", h.Me)
 		internalOnly.PATCH("/me", h.UpdateProfile)
 		internalOnly.PATCH("/me/availability", h.UpdateAvailability)
