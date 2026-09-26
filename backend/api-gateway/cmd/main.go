@@ -343,7 +343,7 @@ func authMiddleware(secret []byte) gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Cegah algorithm confusion attack — hanya izinkan HMAC
+			// Prevent algorithm confusion attacks: only allow HMAC
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}

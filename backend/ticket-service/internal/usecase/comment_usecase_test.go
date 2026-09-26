@@ -50,7 +50,7 @@ func TestCommentCreate_AssignedAgentCanComment(t *testing.T) {
 	commentRepo := &fakeCommentRepository{}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 
-	if _, _, err := uc.Create(1, 5, "agent", "sudah saya cek", false); err != nil {
+	if _, _, err := uc.Create(1, 5, "agent", "checked it already", false); err != nil {
 		t.Fatalf("expected assigned agent to comment, got %v", err)
 	}
 }
@@ -60,7 +60,7 @@ func TestCommentCreate_NonOwnerForbidden(t *testing.T) {
 	commentRepo := &fakeCommentRepository{}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 
-	_, _, err := uc.Create(1, 999, "user", "aku pengen tau tiket orang lain", false)
+	_, _, err := uc.Create(1, 999, "user", "I want to read someone else's ticket", false)
 	if !errors.Is(err, usecase.ErrForbidden) {
 		t.Fatalf("expected ErrForbidden, got %v", err)
 	}
@@ -74,7 +74,7 @@ func TestCommentList_ReturnsInOrder(t *testing.T) {
 	commentRepo := &fakeCommentRepository{comments: []domain.TicketComment{
 		{TicketID: 1, Body: "pertama"},
 		{TicketID: 1, Body: "kedua"},
-		{TicketID: 2, Body: "punya tiket lain"},
+		{TicketID: 2, Body: "a comment on another ticket"},
 	}}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 
@@ -107,7 +107,7 @@ func TestCommentCreate_AgentCanMarkInternal(t *testing.T) {
 	commentRepo := &fakeCommentRepository{}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 
-	comment, _, err := uc.Create(1, 5, "agent", "catatan internal buat tim", true)
+	comment, _, err := uc.Create(1, 5, "agent", "internal note for the team", true)
 	if err != nil {
 		t.Fatalf("expected assigned agent to comment, got %v", err)
 	}
@@ -120,7 +120,7 @@ func TestCommentList_HidesInternalFromUser(t *testing.T) {
 	ticketRepo := newFakeTicketRepo(domain.Ticket{ID: 1, UserID: 7})
 	commentRepo := &fakeCommentRepository{comments: []domain.TicketComment{
 		{TicketID: 1, Body: "balasan publik", IsInternal: false},
-		{TicketID: 1, Body: "catatan internal", IsInternal: true},
+		{TicketID: 1, Body: "internal note", IsInternal: true},
 	}}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 
@@ -141,7 +141,7 @@ func TestCommentList_ShowsInternalToStaff(t *testing.T) {
 	ticketRepo := newFakeTicketRepo(domain.Ticket{ID: 1, UserID: 7, AssignedAgentID: &agentID})
 	commentRepo := &fakeCommentRepository{comments: []domain.TicketComment{
 		{TicketID: 1, Body: "balasan publik", IsInternal: false},
-		{TicketID: 1, Body: "catatan internal", IsInternal: true},
+		{TicketID: 1, Body: "internal note", IsInternal: true},
 	}}
 	uc := usecase.NewCommentUsecase(commentRepo, usecase.NewTicketUsecase(ticketRepo))
 

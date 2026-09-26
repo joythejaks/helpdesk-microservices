@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	startupRetryDelay = 3 * time.Second // jeda antar retry saat startup
-	reconnectDelay    = 2 * time.Second // jeda sebelum reconnect setelah disconnect
+	startupRetryDelay = 3 * time.Second // delay between retries at startup
+	reconnectDelay    = 2 * time.Second // delay before reconnecting after a disconnect
 
 	// persistQueue is durable and shared across every notification-service
 	// replica (classic competing consumers) — each event is persisted

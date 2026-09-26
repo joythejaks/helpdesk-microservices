@@ -72,7 +72,7 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// cegah algorithm confusion attack
+		// prevent algorithm confusion attacks
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -117,7 +117,7 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("🔐 WebSocket connected (authorized), role:", role, "user_id:", userID)
 
-	// goroutine untuk detect disconnect dan cleanup
+	// goroutine to detect disconnects and clean up
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

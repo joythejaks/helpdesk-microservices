@@ -28,7 +28,7 @@ func NewPostgresDB() (*gorm.DB, error) {
 		if err == nil {
 			log.Println("✅ Connected to database")
 
-			// 🔥 Optimize Connection Pool for Production
+			// Optimize Connection Pool for Production
 			sqlDB, err := db.DB()
 			if err != nil {
 				return nil, err

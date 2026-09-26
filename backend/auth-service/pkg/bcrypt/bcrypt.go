@@ -8,7 +8,7 @@ func Hash(password string) (string, error) {
 	return string(bytes), err
 }
 
-// 🔥 TAMBAHKAN INI
+// Compare checks a plaintext password against its bcrypt hash.
 func Compare(hashedPassword string, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }

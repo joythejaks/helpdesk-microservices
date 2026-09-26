@@ -8,7 +8,7 @@ import (
 	"auth-service/internal/usecase"
 )
 
-// fakeUserRepository adalah in-memory implementation dari domain.UserRepository
+// fakeUserRepository is an in-memory implementation of domain.UserRepository
 type fakeUserRepository struct {
 	users map[string]*domain.User
 }
@@ -78,7 +78,7 @@ func TestRegister_PasswordIsHashed(t *testing.T) {
 
 	_ = uc.Register("Hash User", "hash@example.com", "plaintext", "IT", "user")
 
-	// akses lewat interface, bukan field langsung
+	// access through the interface, not the field directly
 	user, err := repo.FindByEmail("hash@example.com")
 	if err != nil {
 		t.Fatalf("user not found: %v", err)
@@ -139,7 +139,7 @@ func TestRegister_RoleIsStored(t *testing.T) {
 
 	_ = uc.Register("Admin User", "admin@example.com", "pass", "IT", "admin")
 
-	// akses lewat interface, bukan field langsung
+	// access through the interface, not the field directly
 	user, err := repo.FindByEmail("admin@example.com")
 	if err != nil {
 		t.Fatalf("user not found: %v", err)
